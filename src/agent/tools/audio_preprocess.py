@@ -1,3 +1,5 @@
+# Audio preprocessing module
+
 from __future__ import annotations 
 
 from pathlib import Path 
@@ -17,51 +19,59 @@ def preprocess_audio(
         bandlimit: bool=False,
         trim_leading_trailing_silence: bool=False,
         overwrite: bool=True
-) -> Path:
+) -> str | Path:
     """ 
-    This function preprocesses audio file for transcription.
+    This function preprocesses audio file for transcription. The file
+    is preprocessed, converted to .wav and saved in a tmp/ directory.
+
+    Args:
+        (i) input_path (str | Path): path to audio file
+        (ii) output_path (str | Path): path to save preprocessed audio file
+        (iii) target_freq (int): target frequency in Hz; defaults to 16000 Hz
+        (iv) loudnorm (bool): loudness normalization; defaults to True
+        (v) bandlimit (bool): applies high and lowpass filters to signal; defaults to False
+        (vi) trim_leading_trailing_silence (bool): trims leading trailing silences; defaults to False
+        (vii) overwrite (bool): overwrites audio file
+
+    Returns:
+        output path (str | Path): path to preprocessed audio file
     """
     input_path = Path(input_path)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        stream = ffmpeg.input(str(input_path))
-        filters = []
+        stream = ffmpeg.input(input_path)
+        audio = stream.audio
 
         if loudnorm:
-            filters.append("loudnorm=I=-16:LRA=11:TP=-1.5")
+            audio = audio.filter("loudnorm", I=-16, LRA=11, TP=-1.5)
 
         if bandlimit:
-            filters.append("highpass=f=80")
-            filters.append("lowpass=f=8000")
-        
-        if trim_leading_trailing_silence:
-            filters.append(
-                "silenceremove=start_periods=1:start_silence=1:start_threshold=-50dB:"
-                "stop_periods=1:stop_silence=1:stop_threshold=-50dB"
-            )
-        
-        if filters:
-            stream = stream.filter_(",".join(filters))
+            audio = audio.filter("highpass", f=80)
+            audio = audio.filter("lowpass", f=8000)
 
-        stream = (
-            stream.output(
-                str(output_path),
-                ac=1 if mono else None,
-                ar=target_freq,
-                acodec="pcm_s161e"
+        if trim_leading_trailing_silence:
+            audio = audio.filter(
+                "silenceremove",
+                start_periods=1,
+                start_silence=1,
+                start_threshold="-50dB",
+                stop_periods=1,
+                stop_silence=1,
+                stop_threshold="-50dB"
             )
-        )
+
+        stream = ffmpeg.output(audio, str(output_path), ar=target_freq, ac=1 if mono else 2)
 
         if overwrite:
             stream = stream.overwrite_output()
 
-        stream.run(quite=True)
+        stream.run(quiet=False)
 
-    except ffmpeg.Error as e:
+    except Exception as e:
         raise AudioPreprocessError(
-            f"FFmpeg preprocessing failed:\n{e.stderr.decode() if e.stderr else e}"
+            f"FFmpeg preprocessing failed"
         ) from e 
     
     return output_path

@@ -1,12 +1,17 @@
 # Speech-to-Text tool
+from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Optional
 
+import torch
 import whisper 
 
 from .audio_preprocess import preprocess_audio
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 class STTError(RuntimeError):
     pass
@@ -20,17 +25,52 @@ class STTSegment:
 @dataclass(frozen=True)
 class STTResult:
     language: Optional[str]
-    language_probability: Optional[str]
     duration_s: Optional[float]
     text: str
     segments: list[STTSegment]
+
+def _seconds_to_srt_time(seconds: float) -> str:
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    secs = int(seconds % 60)
+
+    return f"{hours:02}:{minutes:02}:{secs:02}"
+
+def save_stt_result(
+        result: STTResult,
+        output_path: str | Path,
+        formats: list[Literal["json", "sqrt"]]=["json", "srt"]
+) -> None:
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True) # makes a directory for saving transcripts
+
+    for fmt in formats:
+        path = output_path.with_suffix(f".{fmt}")
+
+        if fmt == "json":
+            payload = {
+                "language": result.language,
+                "text": result.text,
+                "segments": [
+                    {"start_s": s.start_s, "end_s": s.end_s, "text": s.text}
+                    for s in result.segments
+                ]
+            }
+            with open(output_path, "w") as f:
+                json.dump(payload, f)
+
+        elif fmt == "srt":
+            with open(output_path, "w") as f:
+                for idx, segment in enumerate(result.segments):
+                    f.write(f"{idx}\n")
+                    f.write(f"{_seconds_to_srt_time(segment.start_s)} --> {_seconds_to_srt_time(segment.end_s)}\n")
+                    f.write(f"{segment.text}\n\n")
 
 def perform_transcription(
         input_audio_path: str | Path,
         *,
         work_dir: str="tmp/stt",
         model_size: Literal["base", "tiny", "small", "medium"]="small",
-        device: Literal["cpu", "gpu", "auto"]="auto",
         # Decode kwargs
         beam_size: int=5,
         temperature: float=0.0,
@@ -44,11 +84,10 @@ def perform_transcription(
         (i) input_audio_path (str | Path) - path to the input audio file
         (ii) work_dir (str) - temporary directory to store preprocessed audio file(s); defaults to "tmp/stt"
         (iii) model_size (Literal["base", "tiny", "small", "medium"]) - a selection of available Whisper models; defaults to "small"
-        (iv) device (Literal["cpu", "gpu", "auto"]) - type of device that is available; defaults to "auto"
-        (v) beam_size (int) - the number of candidate transcriptions Whisper considers simultaneously; defaults to 5
-        (vi) temperature (float) - controls how confident/random the results are; defaults to 0.0 (least randomness)
-        (v) language (str, Optional) - the language in the audio file; defaults to None
-        (vi) task (Literal["transcribe", "translate"]) - the kind of task to be performed; defaults to "transcribe"
+        (iv) beam_size (int) - the number of candidate transcriptions Whisper considers simultaneously; defaults to 5
+        (v) temperature (float) - controls how confident/random the results are; defaults to 0.0 (least randomness)
+        (vi) language (str, Optional) - the language in the audio file; defaults to None
+        (vii) task (Literal["transcribe", "translate"]) - the kind of task to be performed; defaults to "transcribe"
     """
     input_audio_path = Path(input_audio_path)
     work_dir = Path(work_dir)
@@ -66,13 +105,17 @@ def perform_transcription(
     # Perform transcription
     try:
         raw = model.transcribe(
-            str(preprocessed_path),
+            model=model,
+            audio=str(preprocessed_path),
             temperature=temperature,
             beam_size=beam_size,
             language=language,
             task=task,
             verbose=False
         )
+
+        if language is None:
+            language = raw["language"]
 
     except Exception as e:
         raise STTError(f"Transcription failed: {e}") from e
@@ -91,3 +134,12 @@ def perform_transcription(
         text=raw["text"].strip(),
         segments=segments
     )
+if __name__ == "__main__":
+    from pathlib import Path
+
+    ROOT_DIR = Path(__file__).resolve().parents[3]
+    AUDIO_PATH = ROOT_DIR / "src" / "agent" / "test_data" / "audio" / "audio_sample_001.m4a"
+    JSON_PATH = AUDIO_PATH.with_suffix(".json")
+
+    stt_results = perform_transcription(AUDIO_PATH)
+    save_stt_result(stt_results, JSON_PATH)
