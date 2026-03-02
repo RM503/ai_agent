@@ -1,10 +1,11 @@
+# Celery task for transcription
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
 from .celery_app import celery_app
-from ..tools.transcription.service import (
+from ..tools.transcription.stt import (
     STTError,
     STTResult,
     perform_transcription

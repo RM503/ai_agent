@@ -1,18 +1,21 @@
-# Entry-point
+# Entry-point: to be developed more as features are added
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from starlette import status
 
-from routers import uploads
-from core.logging_config import get_logger
+from .routers import transcription
+from .core.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
-app.include_router(uploads.router)
+templates = Jinja2Templates(directory="agent/templates")
 
+# Imported routes from agent/routers
+app.include_router(transcription.router)
+
+# Index page
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(

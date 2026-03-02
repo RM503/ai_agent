@@ -8,6 +8,7 @@ celery_app = Celery(
 
 # Configurations
 celery_app.conf.update(
+    include=["agent.worker.tasks"],
     task_serializer="json",
     result_serializer="json",
     accept_content=["json"],
