@@ -7,7 +7,34 @@ from pathlib import Path
 import ffmpeg
 
 class AudioPreprocessError(RuntimeError):
-    pass 
+    pass
+
+def check_audio_length(input_path: str | Path) -> float:
+    input_path = Path(input_path)
+    try:
+        probe_result = ffmpeg.probe(input_path)
+        duration = float(probe_result["format"]["duration"])
+        return duration
+    except ffmpeg.Error as e:
+        raise AudioPreprocessError(
+            f"FFmpeg preprocessing failed: {e.stderr}"
+        ) from e
+
+def split_audio(input_path: str | Path, output_path: str | Path, chunk_duraation: float=600.0) -> None:
+    input_path = Path(input_path)
+    ext = input_path.suffix
+    (
+        ffmpeg
+        .input(input_path)
+        .output(
+            f"{output_path}_%3d.{ext}",
+            f="segment",
+            segment_time=chunk_duraation,
+            c="copy"
+        )
+        .overwrite_output()
+        .run(quiet=True)
+    )
 
 def preprocess_audio(
         input_path: str | Path,
@@ -69,9 +96,9 @@ def preprocess_audio(
 
         stream.run(quiet=False)
 
-    except Exception as e:
+    except ffmpeg.Error as e:
         raise AudioPreprocessError(
-            f"FFmpeg preprocessing failed"
+            f"FFmpeg preprocessing failed: {e.stderr}"
         ) from e 
     
     return output_path

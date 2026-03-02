@@ -11,6 +11,7 @@ import whisper
 
 from .audio_preprocess import preprocess_audio
 
+# Whisper does not work well with Apple MPS GPUs
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 class STTError(RuntimeError):
@@ -33,13 +34,14 @@ def _seconds_to_srt_time(seconds: float) -> str:
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
+    millis = int((seconds - int(seconds)) * 1000)
 
-    return f"{hours:02}:{minutes:02}:{secs:02}"
+    return f"{hours:02}:{minutes:02}:{secs:02},{millis:03}"
 
 def save_stt_result(
         result: STTResult,
         output_path: str | Path,
-        formats: list[Literal["json", "sqrt"]]=["json", "srt"]
+        formats: list[Literal["json", "srt"]]=["json", "srt"]
 ) -> None:
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True) # makes a directory for saving transcripts
@@ -56,11 +58,11 @@ def save_stt_result(
                     for s in result.segments
                 ]
             }
-            with open(output_path, "w") as f:
+            with open(path, "w") as f:
                 json.dump(payload, f)
 
         elif fmt == "srt":
-            with open(output_path, "w") as f:
+            with open(path, "w") as f:
                 for idx, segment in enumerate(result.segments):
                     f.write(f"{idx}\n")
                     f.write(f"{_seconds_to_srt_time(segment.start_s)} --> {_seconds_to_srt_time(segment.end_s)}\n")
@@ -105,7 +107,6 @@ def perform_transcription(
     # Perform transcription
     try:
         raw = model.transcribe(
-            model=model,
             audio=str(preprocessed_path),
             temperature=temperature,
             beam_size=beam_size,
@@ -138,8 +139,13 @@ if __name__ == "__main__":
     from pathlib import Path
 
     ROOT_DIR = Path(__file__).resolve().parents[3]
-    AUDIO_PATH = ROOT_DIR / "src" / "agent" / "test_data" / "audio" / "audio_sample_001.m4a"
-    JSON_PATH = AUDIO_PATH.with_suffix(".json")
 
-    stt_results = perform_transcription(AUDIO_PATH)
-    save_stt_result(stt_results, JSON_PATH)
+    for i in range(5):
+        AUDIO_PATH = ROOT_DIR / "src" / "agent" / "test_data" / "audio" / f"audio_sample_00{i}.m4a"
+        TRANSCRIPT_PATH = AUDIO_PATH.parents[1] / "transcripts"
+        OUTPUT_BASE = TRANSCRIPT_PATH / AUDIO_PATH.stem
+
+        print(f"Working on {AUDIO_PATH.stem}")
+
+        stt_results = perform_transcription(AUDIO_PATH)
+        save_stt_result(stt_results, OUTPUT_BASE)
