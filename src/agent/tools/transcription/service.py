@@ -135,17 +135,3 @@ def perform_transcription(
         text=raw["text"].strip(),
         segments=segments
     )
-if __name__ == "__main__":
-    from pathlib import Path
-
-    ROOT_DIR = Path(__file__).resolve().parents[3]
-
-    for i in range(5):
-        AUDIO_PATH = ROOT_DIR / "src" / "agent" / "test_data" / "audio" / f"audio_sample_00{i}.m4a"
-        TRANSCRIPT_PATH = AUDIO_PATH.parents[1] / "transcripts"
-        OUTPUT_BASE = TRANSCRIPT_PATH / AUDIO_PATH.stem
-
-        print(f"Working on {AUDIO_PATH.stem}")
-
-        stt_results = perform_transcription(AUDIO_PATH)
-        save_stt_result(stt_results, OUTPUT_BASE)
