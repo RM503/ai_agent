@@ -4,10 +4,11 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Iterator, Literal, Optional, TypedDict, Iterable
 
 import torch
-import whisper 
+from faster_whisper import WhisperModel
+from faster_whisper.transcribe import Segment
 
 from .audio_preprocess import preprocess_audio
 
@@ -17,12 +18,20 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 class STTError(RuntimeError):
     pass
 
+class STTMeta(TypedDict):
+    language: Optional[str]
+    duration_s: Optional[float]
+    model_size: str
+    task: str
+
+# Stores individual segment information
 @dataclass(frozen=True)
 class STTSegment:
     start_s: float 
     end_s: float 
     text: str
 
+# Stores global information of transcript
 @dataclass(frozen=True)
 class STTResult:
     language: Optional[str]
@@ -68,7 +77,7 @@ def save_stt_result(
                     f.write(f"{_seconds_to_srt_time(segment.start_s)} --> {_seconds_to_srt_time(segment.end_s)}\n")
                     f.write(f"{segment.text}\n\n")
 
-def perform_transcription(
+def transcription_core(
         input_audio_path: str | Path,
         *,
         work_dir: str="tmp/stt",
@@ -78,18 +87,21 @@ def perform_transcription(
         temperature: float=0.0,
         language: Optional[str]=None,
         task: Literal["transcribe", "translate"]="transcribe"
-) -> STTResult:
+) -> tuple[Iterable[Segment], STTMeta]:
     """ 
-    This function performs transcription/translation using OpenAI Whisper model (locally).
+    This is the core transcription function using Faster-Whisper.
 
     Args:
-        (i) input_audio_path (str | Path) - path to the input audio file
-        (ii) work_dir (str) - temporary directory to store preprocessed audio file(s); defaults to "tmp/stt"
-        (iii) model_size (Literal["base", "tiny", "small", "medium"]) - a selection of available Whisper models; defaults to "small"
-        (iv) beam_size (int) - the number of candidate transcriptions Whisper considers simultaneously; defaults to 5
-        (v) temperature (float) - controls how confident/random the results are; defaults to 0.0 (least randomness)
-        (vi) language (str, Optional) - the language in the audio file; defaults to None
-        (vii) task (Literal["transcribe", "translate"]) - the kind of task to be performed; defaults to "transcribe"
+        input_audio_path (str | Path) - path to the input audio file
+        work_dir (str) - temporary directory to store preprocessed audio file(s); defaults to "tmp/stt"
+        model_size (Literal["base", "tiny", "small", "medium"]) - a selection of available Whisper models; defaults to "small"
+        beam_size (int) - the number of candidate transcriptions Whisper considers simultaneously; defaults to 5
+        temperature (float) - controls how confident/random the results are; defaults to 0.0 (least randomness)
+        language (str, Optional) - the language in the audio file; defaults to None
+        task (Literal["transcribe", "translate"]) - the kind of task to be performed; defaults to "transcribe"
+
+    Returns:
+        tuple[Iterator, STTMeta] - returns a tuple of transcribed segment iterator and metadata
     """
     input_audio_path = Path(input_audio_path)
     work_dir = Path(work_dir)
@@ -97,41 +109,67 @@ def perform_transcription(
 
     preprocessed_path = work_dir / f"{input_audio_path.stem}_preprocessed.wav"
     _ = preprocess_audio(input_audio_path, preprocessed_path)
-    
-    # Load model
+
+    # Using the `faster-whisper` model. It is faster generates results by streaming.
     try:
-        model = whisper.load_model(name=model_size, device=device)
+        model = WhisperModel(model_size_or_path=model_size, device=device, compute_type="auto")
     except Exception as e:
         raise STTError(f"Failed to load WhisperModel({model_size}): {e}") from e 
     
     # Perform transcription
     try:
-        raw = model.transcribe(
-            audio=str(preprocessed_path),
-            temperature=temperature,
-            beam_size=beam_size,
-            language=language,
-            task=task,
-            verbose=False
-        )
+        segments, info = model.transcribe(
+                            audio=str(preprocessed_path),
+                            temperature=temperature,
+                            beam_size=beam_size,
+                            language=language,
+                            task=task
+                        )
 
         if language is None:
-            language = raw["language"]
+            language = info.language
 
     except Exception as e:
         raise STTError(f"Transcription failed: {e}") from e
-    
-    # Store transcribed audio segments
-    segments = [
-        STTSegment(start_s=segment["start"], end_s=segment["end"], text=segment["text"].strip())
-        for segment in raw.get("segments", [])
-    ]
 
-    duration_s = segments[-1].end_s if segments else None
+    # Store audio metadata
+    meta: STTMeta = {
+        "language": (language or info.language),
+        "duration_s": float(info.duration) if getattr(info, "duration", None) else None,
+        "model_size": model_size,
+        "task": task
+    }
 
-    return STTResult(
-        language=language,
-        duration_s=duration_s,
-        text=raw["text"].strip(),
-        segments=segments
-    )
+    return segments, meta
+
+def transcription_stream(input_audio_path: str | Path, emit_meta_first: bool=True):
+    """
+    This function uses the iterator from `transcription_core` for streaming.
+    """
+    # Get transcription generator and metadata
+    segments, meta = transcription_core(input_audio_path)
+
+    if emit_meta_first:
+        yield {"type": "meta", **meta}
+
+    parts: list[str] = []
+    for segment in segments:
+        text = segment.text
+        parts.append(text)
+
+        yield {
+            "type": "segment",
+            "start_s": segment.start,
+            "end_s": segment.end,
+            "text": text
+        }
+
+    # Join all texts
+    full_text = " ".join(parts).strip()
+
+    yield {
+        "type": "done",
+        "text": full_text,
+        "language": meta.get("language"),
+        "duration_s": meta.get("duration_s")
+    }
