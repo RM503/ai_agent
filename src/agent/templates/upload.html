@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Upload Files</title>
+  <title>Upload Audio</title>
   <style>
     #drop-zone {
       border: 2px dashed #aaa;
@@ -10,7 +10,7 @@
       padding: 40px;
       text-align: center;
       color: #aaa;
-      width: 400px;
+      width: 520px;
       margin: 40px auto;
       cursor: pointer;
     }
@@ -23,68 +23,48 @@
       text-align: center;
       font-family: sans-serif;
       margin-top: 12px;
+      white-space: pre-wrap;
+    }
+    #live {
+      width: 80%;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      min-height: 160px;
+    }
+    #actions {
+      text-align: center;
+      margin-top: 10px;
+      font-family: sans-serif;
+    }
+    #download-link {
+      display: none;
     }
   </style>
 </head>
 <body>
   <a href="/">← Back to Home</a>
-  <h1>Upload Files</h1>
+  <h1>Upload Audio</h1>
 
   <div id="drop-zone">
-    <p>Drag & drop files here</p>
+    <p>Drag & drop an audio file here</p>
     <p>or click to select</p>
-    <input type="file" id="file-input" multiple hidden>
+    <input type="file" id="file-input" accept="audio/*" hidden>
   </div>
 
   <p id="status"></p>
 
-  <script>
-    const dropZone = document.getElementById('drop-zone');
-    const fileInput = document.getElementById('file-input');
-    const statusEl = document.getElementById('status');
+  <div id="actions">
+    <a id="download-link" href="#">Download transcript</a>
+  </div>
 
-    dropZone.addEventListener('click', () => fileInput.click());
+  <div id="live"></div>
 
-    dropZone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropZone.classList.add('dragover');
-    });
-
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('dragover');
-      uploadFile(e.dataTransfer.files[0]);
-    });
-
-    fileInput.addEventListener('change', () => uploadFile(fileInput.files[0]));
-
-    async function uploadFile(file) {
-      if (!file) return;
-
-      statusEl.textContent = `Uploading ${file.name}...`;
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      try {
-        const res = await fetch('/upload-audio', { method: 'POST', body: formData });
-
-        let data = null;
-        const ct = res.headers.get("content-type") || "";
-        if (ct.includes("application/json")) data = await res.json();
-        else data = { detail: await res.text() };
-
-        if (res.ok) {
-          statusEl.textContent = `✅ Uploaded: ${data.filename}`;
-        } else {
-          statusEl.textContent = `❌ Error: ${data.detail || 'Unknown error'}`;
-        }
-      } catch (err) {
-        statusEl.textContent = `❌ Upload failed: ${err.message}`;
-      }
-    }
-  </script>
+  <script src="../static/js/upload.js"></script>
 </body>
 </html>

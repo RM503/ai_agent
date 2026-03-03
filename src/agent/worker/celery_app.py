@@ -6,9 +6,10 @@ celery_app = Celery(
     backend="redis://localhost:6379/1"
 )
 
+celery_app.autodiscover_tasks(["agent.worker"])
+
 # Configurations
 celery_app.conf.update(
-    include=["agent.worker.tasks"],
     task_serializer="json",
     result_serializer="json",
     accept_content=["json"],
