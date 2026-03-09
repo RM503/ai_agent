@@ -1,0 +1,34 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any, Literal, Optional
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
+class UploadedArtifact(BaseModel):
+    file_id: Optional[str] = None
+    file_name: Optional[str] = None
+    file_content: Optional[str] = None
+    file_path: Optional[str | Path] = None
+
+class AnalysisResult(BaseModel):
+    summary: Optional[str] = None
+    preview_rows: list[dict[str, Any]] = Field(default_factory=list)
+    metrics: dict[str, Any] = Field(default_factory=dict)
+    chart_paths: list[str | Path] = Field(default_factory=list)
+
+class AgentState(BaseModel):
+    """State for orchestrator agent"""
+    session_id: str | UUID
+    user_message: str
+    route: Optional[
+        Literal["transcription", "summarization", "data_analysis", "general"]
+    ] = None
+    uploaded_artifact: Optional[UploadedArtifact] = None
+    transcript_text: Optional[str] = None
+    summary_text: Optional[str] = None
+    analysis_result: Optional[AnalysisResult] = None
+    response_text: Optional[str] = None
+    messages: list[dict[str, str]] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
