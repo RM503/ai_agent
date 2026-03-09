@@ -89,7 +89,7 @@ def transcription_core(
         task: Literal["transcribe", "translate"]="transcribe"
 ) -> tuple[Iterable[Segment], STTMeta]:
     """ 
-    This is the core transcription function using Faster-Whisper.
+    This is the common transcription function using Faster-Whisper.
 
     Args:
         input_audio_path (str | Path) - path to the input audio file

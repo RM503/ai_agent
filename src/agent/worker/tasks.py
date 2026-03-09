@@ -14,13 +14,24 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 OUTPUT_DIR = REPO_ROOT / "storage" / "transcripts"
 
 r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+r.config_set("save", "")
 
 def _push_event(job_id: str, payload: dict[str, Any]) -> None:
     r.rpush(f"stt:{job_id}:events", json.dumps(payload, ensure_ascii=False))
 
 @celery_app.task(bind=True, name="task.transcribe_audio")
 def transcribe_audio(self, job_id: str, file_path: str, out_dir: str=OUTPUT_DIR) -> dict[str, Any]:
-    """Celery task for audio transcription."""
+    """
+    This function creates a Celery task for audio transcription.
+
+    Args:
+        job_id (str) - job id for Redis queue
+        file_path (str) - audio file path
+        out_dir (str) - output directory for transcribed file
+
+    Returns:
+        dict[str, Any]
+    """
     try:
         file_path = Path(file_path)
         if not file_path.exists():

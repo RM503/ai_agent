@@ -59,8 +59,14 @@ coverage.xml
 *.log
 *.sqlite3
 *.db
+*.rdb
 
 # Secrets / keys
 *.pem
 *.key
 secrets.json
+
+notebooks/
+storage/
+test_data/
+tmp/

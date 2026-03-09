@@ -8,25 +8,34 @@ version = "0.1.0"
 description = "AI agent for transcription, data analysis and workflow intelligence"
 authors=[{name="Rafid Mahbub"}]
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.13"
 dependencies = [
     "celery>=5.6.2",
+    "deepagents>=0.4.5",
     "faiss-cpu>=1.13.2",
     "fastapi>=0.133.1",
     "faster-whisper>=1.2.1",
     "ffmpeg-python>=0.2.0",
+    "httpx>=0.28.1",
     "ipykernel>=7.2.0",
     "langchain>=1.2.10",
     "langchain-community>=0.4.1",
     "langchain-openai>=1.1.10",
-    "onnxruntime==1.19.2",
+    "langchain-postgres>=0.0.17",
+    "langgraph>=1.0.9",
+    "langsmith[openai-agents]>=0.7.7",
+    "onnxruntime>=1.19.2",
     "openai>=2.24.0",
     "pandas>=2.3.3",
     "plotly>=6.5.2",
+    "psycopg2-binary>=2.9.11",
     "pydantic>=2.12.5",
+    "pypdf>=6.7.5",
     "python-dotenv>=1.2.1",
     "python-multipart>=0.0.22",
     "redis>=7.2.1",
+    "sqlmodel>=0.0.37",
+    "streamlit>=1.55.0",
     "uvicorn>=0.41.0",
 ]
 

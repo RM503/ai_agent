@@ -6,14 +6,13 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 from uuid import uuid4
 
-import redis
-from celery.result import AsyncResult
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from kombu.exceptions import OperationalError
+from redis import Redis
 
-from agent.core.logging_config import get_logger
+from agent.common.logging_config import get_logger
 from agent.worker.tasks import transcribe_audio
 
 logger = get_logger(__name__)
@@ -29,7 +28,8 @@ UPLOAD_DIR = ROOT_DIR / "storage" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Initialize Redis client
-r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
+r.config_set("save", "")
 
 @page_router.get("/upload")
 async def upload_page(request: Request) -> HTMLResponse:
@@ -51,15 +51,15 @@ async def upload_audio_for_transcription(file: UploadFile = File(...)) -> dict[s
 
     # Save file
     suffix = Path(file.filename).suffix
-    file_path = UPLOAD_DIR / f"{job_id}.{suffix}"
+    file_path = UPLOAD_DIR / f"{job_id}{suffix}"
 
     data = await file.read()
     logger.info(f"Saving to {file_path}")
     file_path.write_bytes(data)
 
-    # Initialize Redis state
+    # Initialize Redis state; Celery updates 'status' from queued to 'done' or 'error'
     r.set(f"stt:{job_id}:status", "queued")
-    r.delete(f"stt{job_id}:events")
+    r.delete(f"stt:{job_id}:events")
     r.delete(f"stt:{job_id}:error")
     r.delete(f"stt:{job_id}:result_path")
 

@@ -5,9 +5,9 @@ from typing import Any
 
 from langchain_text_splitters import SentenceTransformersTokenTextSplitter
 
-from ..registry import register
+from ..registry import register_splitter
 
-@register("sentence")
+@register_splitter("sentence")
 def factory(chunk_size: int, chunk_overlap: int, extra: dict[str, Any]) -> SentenceTransformersTokenTextSplitter:
     return SentenceTransformersTokenTextSplitter(
         chunk_size=chunk_size,

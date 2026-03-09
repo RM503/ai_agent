@@ -1,0 +1,41 @@
+#drop-zone {
+      border: 2px dashed #aaa;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      color: #aaa;
+      width: 520px;
+      margin: 40px auto;
+      cursor: pointer;
+    }
+    #drop-zone.dragover {
+      border-color: #333;
+      color: #333;
+      background-color: #f0f0f0;
+    }
+    #status {
+      text-align: center;
+      font-family: sans-serif;
+      margin-top: 12px;
+      white-space: pre-wrap;
+    }
+    #live {
+      width: 80%;
+      max-width: 900px;
+      margin: 20px auto;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      white-space: pre-wrap;
+      line-height: 1.4;
+      min-height: 160px;
+    }
+    #actions {
+      text-align: center;
+      margin-top: 10px;
+      font-family: sans-serif;
+    }
+    #download-link {
+      display: none;
+    }

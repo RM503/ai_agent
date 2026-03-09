@@ -14,6 +14,7 @@ class ChatResponse(BaseModel):
     """Data format for response body from UI"""
     session_id: str | UUID
     route: str # tells the frontend which agent branch handled the request
+    response: str
     transcription_text: Optional[str]=None
     summary_text: Optional[str]=None
     analysis_text: Optional[str]=None

@@ -1,11 +1,13 @@
+// Create HTML DOM elements
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
-const statusEl = document.getElementById('status')
-const liveEl = document.getElementById('live')
-const downloadLink = document.getElementById('download-link')
+const statusEl = document.getElementById('status');
+const liveEl = document.getElementById('live');
+const downloadLink = document.getElementById('download-link');
 
 let es = null; // EventSource handle
 
+// Add event listeners
 dropZone.addEventListener('click', () => fileInput.click())
 dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -40,7 +42,7 @@ async function uploadFile(file) {
   formData.append('file', file);
 
   try {
-    // NOTE: matches router prefix="/transcription"
+    // This must match with the audio upload route from 'agent/routers/transcription.py'
     const res = await fetch('/transcription/upload-audio', {
       method: 'POST',
       body: formData

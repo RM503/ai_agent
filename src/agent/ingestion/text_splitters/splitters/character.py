@@ -5,9 +5,9 @@ from typing import Any
 
 from langchain_text_splitters import CharacterTextSplitter
 
-from ..registry import register
+from ..registry import register_splitter
 
-@register("character")
+@register_splitter("character")
 def factory(chunk_size: int, chunk_overlap: int, extra: dict[str, Any]) -> CharacterTextSplitter:
     return CharacterTextSplitter(
         chunk_size=chunk_size,
