@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
 
@@ -12,6 +13,9 @@ def _route_after_orchestrator(state: AgentState) -> str:
 
 def build_graph() -> CompiledStateGraph:
     """Build a compiled graph from usable nodes"""
+    # Create checkpoint for memory
+    checkpointer = InMemorySaver()
+
     graph = StateGraph(AgentState)
 
     # Add nodes
@@ -23,4 +27,4 @@ def build_graph() -> CompiledStateGraph:
 
     graph.add_edge("general", END)
 
-    return graph.compile()
+    return graph.compile(checkpointer=checkpointer)

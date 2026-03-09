@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Annotated, Any, Literal, Optional
 from uuid import UUID
 
+from langchain_core.messages import BaseMessage
+from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
 class UploadedArtifact(BaseModel):
@@ -20,15 +22,26 @@ class AnalysisResult(BaseModel):
 
 class AgentState(BaseModel):
     """State for orchestrator agent"""
+
+    # Session
     session_id: str | UUID
-    user_message: str
+
+    # Routing decision
     route: Optional[
         Literal["transcription", "summarization", "data_analysis", "general"]
     ] = None
+
+    # Uploaded artifact contex
     uploaded_artifact: Optional[UploadedArtifact] = None
+
+    # Working artifacts
     transcript_text: Optional[str] = None
     summary_text: Optional[str] = None
     analysis_result: Optional[AnalysisResult] = None
+
+    # Agent response
     response_text: Optional[str] = None
-    messages: list[dict[str, str]] = Field(default_factory=list)
+
+    # Conversation memory
+    messages: Annotated[list[BaseMessage], add_messages] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)

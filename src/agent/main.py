@@ -7,5 +7,5 @@ from .routers import chat
 logger = get_logger(__name__)
 
 app = FastAPI()
-app.include_router(chat.chat_router)
+app.include_router(chat.router)
 

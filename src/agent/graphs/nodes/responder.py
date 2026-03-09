@@ -19,9 +19,14 @@ These are your guidelines:
 
 def general_responder_node(state: AgentState) -> dict:
     llm = get_chat_model()
-    response = llm.invoke([
-        SystemMessage(GENERAL_SYSTEM_PROMPT),
-        HumanMessage(state.user_message)
-    ])
 
-    return {"response_text": response.content}
+    messages = [
+        SystemMessage(GENERAL_SYSTEM_PROMPT),
+        *state.messages
+    ]
+    response = llm.invoke(messages)
+
+    return {
+        "messages": [response],
+        "response_text": response.content
+    }
