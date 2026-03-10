@@ -1,11 +1,13 @@
 # Streamlit Frontend
+import json
 import os
+from typing import Generator
 from uuid import uuid4
 
 import httpx
-from httpx import HTTPStatusError
 import streamlit as st
 from dotenv import load_dotenv
+from httpx import HTTPStatusError
 
 from utils import get_messages
 
@@ -67,19 +69,26 @@ with chat_container:
             "message": user_message, # adds current user prompt
         }
 
-        try:
-            response = httpx.post(f"{FASTAPI_URL}/chat", json=payload, timeout=600)
-            response.raise_for_status()
 
-            data = response.json()
+        def get_streaming_response() -> Generator[str]:
+            """Function for streaming LLM response."""
+            with httpx.stream("POST", url=f"{FASTAPI_URL}/chat", json=payload, timeout=120) as response:
+                response.raise_for_status()
+
+                for chunk in response.iter_text():
+                    if chunk:
+                        data = json.loads(chunk)
+                        if data.get("type") == "token":
+                            yield data["content"] if "content" in data else None
+
+        try:
+            with st.chat_message("assistant"):
+                full_response = st.write_stream(get_streaming_response())
 
             assistant_msg = {
                 "role": "assistant",
-                "content": data.get("response")
+                "content": full_response
             }
-
             st.session_state.messages.append(assistant_msg)
-            with st.chat_message("assistant"):
-                st.markdown(data.get("response"))
         except HTTPStatusError as e:
             raise e
