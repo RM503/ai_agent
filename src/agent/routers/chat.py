@@ -1,45 +1,68 @@
 # Route for chat UI
+import json
+from typing import AsyncIterator
+
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 
 from langchain_core.messages import HumanMessage
 
+from agent.common.logging_config import get_logger
 from agent.graphs.builder import build_graph
-from agent.schemas.api import ChatRequest, ChatResponse
+from agent.schemas.api import ChatRequest
 from agent.schemas.graph_state import AgentState
+
+logger = get_logger(__name__)
 
 # Define API route & build graph
 router = APIRouter()
 graph = build_graph()
 
-@router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest) -> ChatResponse:
+@router.post("/chat", response_class=StreamingResponse)
+async def chat(request: ChatRequest) -> StreamingResponse:
     """
-    This router handles inputs coming from the frontend's
-    chat UI, creates state for LangGraph and passes it to
-    the compiled graph for response.
-
-    Args:
-        request (ChatRequest): request object from frontend
-    Returns:
-        ChatResponse: response object
+    Route for generating streamed chat messages.
     """
+    session_id = request.session_id
+    state = AgentState(session_id=session_id)
 
-    state = AgentState(session_id=request.session_id)
+    async def event_generator() -> AsyncIterator:
+        payload_start = json.dumps({"type": "start", "session_id": session_id})
+        #logger.info(f"{payload_start}")
+        yield payload_start
 
-    result = graph.invoke(
-    {
-            "session_id": state.session_id,
-            "messages": [HumanMessage(content=request.message)],
-        },
-        config={"configurable": {"thread_id": str(state.session_id)}},
-    )
+        chunks = []
+        async for event in graph.astream_events(
+                {
+                    "session_id": session_id,
+                    "messages": [HumanMessage(content=request.message)]
+                },
+            config={"configurable": {"thread_id": str(state.session_id)}},
+            version="v2"
+        ):
+            # event will be a JSON response with an 'event' key
+            # search for 'on_chat_model_stream'
+            kind = event["event"]
+            if kind == "on_chat_model_stream":
+                chunk = event["data"]["chunk"].content # AI message from stream
+                node  = event["metadata"]["langgraph_node"] # LangGraph node that is working
+                if chunk:
+                    # Define payload with
+                    payload_main = json.dumps({
+                        "type": "token",
+                        "content": chunk,
+                        "session_id": session_id,
+                        "node": node
+                    })
+                    chunks.append(chunk)
+                    yield f"{payload_main}"
 
-    response = result.get("response_text")
-    if not response:
-        response = result["messages"][-1]
+        full_text = "".join(chunks)
+        payload_end = json.dumps({"type": "end", "session_id": session_id, "response": full_text})
 
-    return ChatResponse(
-        session_id=request.session_id,
-        route=result.get("route", "general"),
-        response=response
+        yield f"{payload_end}"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream"
     )
