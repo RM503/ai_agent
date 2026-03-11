@@ -3,6 +3,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from langgraph.graph import END
+
+from agent.schemas.graph_state import AgentState
+
 # Set of audio and data file extensions
 AUDIO_EXTS: set[str] = {".mp3", ".wav", ".m4a", ".mp4", ".aac", ".flac"}
 DATA_EXTS: set[str] = {".csv", ".xlsx", ".xls", ".parquet"}
@@ -35,3 +39,15 @@ def decide_route(message: str, file_name: str | None=None) -> str:
         return "summary"
     else:
         return "general"
+
+def should_use_tools(state: AgentState) -> str:
+    """
+    This function determines whether to use tools defined in under
+    'agent/tools'. It does so by checking if the last message in the
+    graph state contains 'tool_calls' attribute.
+    """
+    last_message = state.messages[-1]
+
+    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
+        return "tools"
+    return END

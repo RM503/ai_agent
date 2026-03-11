@@ -7,6 +7,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 
 from agent.graphs.nodes.orchestrator import orchestrator_node
 from agent.graphs.nodes.responder import general_responder_node
+from agent.graphs.nodes.tool_executor import tool_executor_node
 from agent.schemas.graph_state import AgentState
 from agent.tools.weather import get_weather
 from agent.tools.web_search import web_search
@@ -25,7 +26,7 @@ def build_graph() -> CompiledStateGraph:
     # Add nodes
     graph.add_node("orchestrator", orchestrator_node)
     graph.add_node("general", general_responder_node)
-    graph.add_node("tools", ToolNode(tools))
+    graph.add_node("tools", tool_executor_node)
 
     graph.add_edge(START, "orchestrator")
     graph.add_edge("orchestrator", "general")
