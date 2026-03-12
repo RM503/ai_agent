@@ -1,0 +1,11 @@
+FROM python:3.13-alpine
+LABEL maintainers="rafidmahbub"
+
+WORKDIR /app
+COPY . .
+
+RUN pip install --updade pip \
+    && pip install -r requirements_backend.txt
+
+EXPOSE 8501
+CMD ["streamlit", "run", "frontend/app.py", "--server.port", "8501", "--server.address", "0.0.0.0"]

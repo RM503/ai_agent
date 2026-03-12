@@ -1,0 +1,14 @@
+FROM python:3.13-alpine
+LABEL maintainers="rafidmahbub"
+
+WORKDIR /app
+COPY . .
+
+RUN pip install --updade pip \
+    && pip install -r requirements_backend.txt
+
+WORKDIR /app/src
+RUN pip install . --break-system-packages
+
+EXPOSE 8000
+CMD ["uvicorn", "agent.main:app", "--host", "0.0.0.0", "--port", "8000"]
