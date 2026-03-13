@@ -17,12 +17,18 @@ def orchestrator_node(state: AgentState) -> dict:
     direct the state to depending on what the user wants using
     the `decide_route` function.
     """
-    file_name = None
-    if state.uploaded_artifact is not None:
-        file_name = state.uploaded_artifact.file_name
+    file_name = (
+        state.uploaded_artifacts[0].file_name
+        if state.uploaded_artifacts else None
+    )
+
+    latest_message = (
+        get_latest_user_message(state.messages)
+        if state.messages else ""
+    )
 
     route = decide_route(
-        get_latest_user_message(state.messages),
+        latest_message,
         file_name
     )
     return {"route": route}

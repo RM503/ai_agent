@@ -18,8 +18,14 @@ WeatherToolReturn = tuple[str, str, str, str]
 @tool
 def get_weather(city: str, units: str) -> WeatherToolReturn:
     """
-    This ia a weather tool to get weather data from OpenWeather
+    This is a weather tool to get weather data from OpenWeather
     based on the user's location (city name).
+
+    Args:
+        city (str): name of the city
+        units (str): the unit of measurement (metric or imperial)
+    Returns:
+        WeatherToolReturn: the weather data
     """
     url = "https://api.openweathermap.org/data/2.5/weather"
     params = {

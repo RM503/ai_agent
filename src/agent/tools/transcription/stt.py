@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Literal, Optional, TypedDict, Iterable
+from typing import Literal, Optional, TypedDict, Iterable
 
 import torch
 from faster_whisper import WhisperModel

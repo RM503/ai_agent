@@ -9,6 +9,7 @@ from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
 
 class UploadedArtifact(BaseModel):
+    """Class for uploads"""
     file_id: Optional[str] = None
     file_name: Optional[str] = None
     file_content: Optional[str] = None
@@ -21,7 +22,7 @@ class AnalysisResult(BaseModel):
     chart_paths: list[str | Path] = Field(default_factory=list)
 
 class AgentState(BaseModel):
-    """State for orchestrator agent"""
+    """The general agent state"""
 
     # Session
     session_id: str | UUID
@@ -31,8 +32,9 @@ class AgentState(BaseModel):
         Literal["transcription", "summarization", "data_analysis", "general"]
     ] = None
 
-    # Uploaded artifact contex
-    uploaded_artifact: Optional[UploadedArtifact] = None
+    # Uploaded artifact context
+    # allows one uploaded artifact at time
+    uploaded_artifacts: Optional[UploadedArtifact] = None
 
     # Working artifacts
     transcript_text: Optional[str] = None
@@ -44,4 +46,7 @@ class AgentState(BaseModel):
 
     # Conversation memory
     messages: Annotated[list[BaseMessage], add_messages] = Field(default_factory=list)
+
+    # Dataset key for inline data
+    dataset_key: Optional[str | UUID] = None
     metadata: dict[str, Any] = Field(default_factory=dict)

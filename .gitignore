@@ -65,6 +65,7 @@ coverage.xml
 *.pem
 *.key
 secrets.json
+google_credentials.json
 
 notebooks/
 storage/

@@ -1,84 +1,70 @@
 # Python REPL tool
 import ast
 import json
-import io
+import re
 from typing import Annotated
 
 import pandas as pd
 from langchain.tools import tool
 
 from .dataset_registry import DATASET_REGISTRY
+from .parse_inline_data import register_inline_dataset
 
-def _parse_inline_data(data: str) -> pd.DataFrame:
-    text = data.strip()
+def _violates_code_rules(code: str) -> str | None:
+    checks = [
+        (r"\bdf\s*=", "Do not assign to `df`. The dataframe is already provided."),
+        (r"\bdata\s*=\s*\[", "Do not inline dataset rows inside the code."),
+        (r"\bdata\s*=\s*\{", "Do not inline dataset values inside the code."),
+        (r"json\.loads\s*\(", "Do not parse JSON inside the code."),
+        (r"ast\.literal_eval\s*\(", "Do not parse literals inside the code."),
+        (r"pd\.read_", "Do not load files inside the code."),
+        (r"pd\.DataFrame\s*\(", "Do not create a dataframe inside the code."),
+    ]
+    for pattern, msg in checks:
+        if re.search(pattern, code):
+            return msg
+    return None
 
-    if not text:
-        raise ValueError(f"No inline data provided")
-
-    # Try JSON
-    try:
-        obj = json.loads(text)
-        if isinstance(obj, list):
-            return pd.DataFrame(obj)
-        if isinstance(obj, dict):
-            try:
-                return pd.DataFrame(obj)
-            except Exception as e:
-                return pd.DataFrame([obj])
-    except Exception:
-        pass
-
-    # Try Python literal (single quoted list of dicts)
-    try:
-        obj = ast.literal_eval(text)
-        if isinstance(obj, list):
-            return pd.DataFrame(obj)
-        if isinstance(obj, dict):
-            try:
-                return pd.DataFrame(obj)
-            except Exception as e:
-                return pd.DataFrame([obj])
-    except Exception:
-        pass
-
-    raise ValueError("Could not parse inline data as JSON, Python literal, or CSV.")
 
 @tool
 def python_repl(
         code: Annotated[str, "The Python code to execute"],
         dataset_key: Annotated[str, "Registry key from file loader"] = "",
-        data: Annotated[str, "Raw JSON, CSV or text data from user. Used when no file is uploaded"] = ""
 ) -> str:
     """
     This is a Python tool that executes Python code on loaded
-    dataframes.
+    tabular dataframes.
 
-    Args:
-        code (str): The code to execute.
-        dataset_key (str): The key of the dataframe to execute.
-        data (str): If data was passed through directly from UI as JSON
-    Returns:
-        str: The result of the execution.
+    Runtime contract:
+    - If `dataset_key` is provided, the tool loads the dataframe from the dataset registry.
+    - The dataframe is exposed to the code as `df`.
+    - Generated code must use `df` directly.
+    - Do not create or reassign `df`.
+    - Assign the final answer to a variable named `result`.
     """
+
     if dataset_key:
-        df = DATASET_REGISTRY.get(dataset_key, None)
+        df = DATASET_REGISTRY.get(dataset_key)
         if df is None:
-            return f"Dataset '{dataset_key} not found'"
+            return f"Dataset '{dataset_key}' not found"
 
-    elif data.strip():
-        try:
-            df = _parse_inline_data(data)
-        except Exception as e:
-            return f"Error reading file: {e}"
+    if len(code) > 1000:
+        # if `code` contains forceful data reads, it will become too long
+        return (
+            "Code generation error: code is too long. "
+            "Do not inline dataset values. Use `df` directly."
+        )
 
-    else:
-        df = None # pure computation, no dataframe needed
+    violation = _violates_code_rules(code)
+    if violation:
+        return f"Code generation error: {violation}"
 
     local_vars = {"df": df}
     safe_globals = {"pd": pd}
 
     try:
+        compile(code, "<string>", "exec")
         exec(code, safe_globals, local_vars)
-        return str(local_vars.get("result", "Execution complete"))
+        return str(local_vars.get("result", "Exectution complete"))
     except Exception as e:
         return f"Execution error: {e}"
