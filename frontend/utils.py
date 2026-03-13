@@ -10,13 +10,24 @@ def get_messages():
         st.session_state.messages = []
     return st.session_state.messages
 
-# def get_streaming_response(url: str, payload: dict[str, str]) -> Generator[str]:
-#     """Function for streaming LLM response."""
-#     with httpx.stream("POST", url=url, payload=payload, timeout=120) as response:
-#         response.raise_for_status()
-#
-#         for chunk in response.iter_text():
-#             if chunk:
-#                 data = json.loads(chunk)
-#                 if data.get("type") == "token":
-#                     yield data["content"] if "content" in data else None
+def get_streaming_response(url: str, payload: dict[str, str]) -> Generator[str, None, None]:
+    """Function for streaming LLM response."""
+    with httpx.stream("POST", url=url, json=payload, timeout=120) as response:
+        response.raise_for_status()
+
+        for chunk in response.iter_text():
+            if chunk:
+                data = json.loads(chunk)
+                if data.get("type") == "token":
+                    yield data["content"] if "content" in data else None
+
+def handle_file_upload(url: str, data: dict, files_payload: list) -> httpx.Response:
+    """Function for handling file uploads"""
+    with httpx.Client() as client:
+        response = client.post(
+            url,
+            data=data,
+            files=files_payload
+        )
+
+    return response.raise_for_status

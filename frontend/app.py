@@ -1,19 +1,31 @@
 # Streamlit Frontend
-import json
+
 import os
-from typing import Generator
 from uuid import uuid4
 
-import httpx
 import streamlit as st
 from dotenv import load_dotenv
 from httpx import HTTPStatusError
 
-from utils import get_messages
+from utils import handle_file_upload, get_messages, get_streaming_response
 
 load_dotenv()
 
+# Layout
+st.set_page_config(
+    layout="wide",
+    initial_sidebar_state="auto"
+)
+
 FASTAPI_URL = os.getenv("FASTAPI_URL")
+
+with st.sidebar:
+    st.image("https://api.dicebear.com/8.x/adventurer/svg?seed=dummy", width=50)
+    st.write("Logged in as: **Dummy User**")
+    st.write("Role: Administrator")
+    st.divider()
+    if st.button("Log out"):
+        st.warning("Logged out")
 
 st.title("Welcome user")
 
@@ -49,41 +61,60 @@ with chat_container:
         with st.chat_message(message["role"]):
             st.markdown(content)
 
-prompt = st.chat_input("Hi! How can I help you?", accept_file=True)
+prompt = st.chat_input(
+    "Hi! How can I help you?", 
+    accept_file="multiple",
+    file_type=["pdf", "txt", "csv", "xls", "xlsx"]
+)
 
 with chat_container:
     if prompt:
         # Extract text if file uploads are enabled
         user_message = prompt.text
+        
+        attached = [
+            {"name": f.name, "type": f.type, "bytes": f.read()}
+            for f in (prompt["files"] or [])
+        ]
+
+        session_id = str(st.session_state.session_id)
+
         st.session_state.messages.append(
             {
                 "role": "user",
-                "content": user_message
+                "content": user_message,
+                "files": [{"name": f["name"]} for f in attached]
             }
         )
+
         with st.chat_message("user"):
             st.markdown(user_message)
+            if attached:
+                st.caption(f"📎 {len(attached)} file(s) attached")
 
-        payload = {
-            "session_id": str(st.session_state.session_id),
+        if attached:
+            files_payload = [("files", (f["name"], f["bytes"], f["type"])) for f in attached]
+
+            _ = handle_file_upload(
+                url=f"{FASTAPI_URL}/uploads",
+                data={"session_id": session_id},
+                files_payload=files_payload
+            )
+
+        # Define payloads to sent to end-points
+        payload_chat = {
+            "session_id": session_id,
             "message": user_message, # adds current user prompt
         }
 
-
-        def get_streaming_response() -> Generator[str]:
-            """Function for streaming LLM response."""
-            with httpx.stream("POST", url=f"{FASTAPI_URL}/chat", json=payload, timeout=120) as response:
-                response.raise_for_status()
-
-                for chunk in response.iter_text():
-                    if chunk:
-                        data = json.loads(chunk)
-                        if data.get("type") == "token":
-                            yield data["content"] if "content" in data else None
-
         try:
             with st.chat_message("assistant"):
-                full_response = st.write_stream(get_streaming_response())
+                full_response = st.write_stream(
+                    get_streaming_response(
+                        url=f"{FASTAPI_URL}/chat",
+                        payload=payload_chat
+                    )
+                )
 
             assistant_msg = {
                 "role": "assistant",
