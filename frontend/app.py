@@ -1,6 +1,8 @@
 # Streamlit Frontend
 
+import base64
 import os
+from io import BytesIO
 from uuid import uuid4
 
 import streamlit as st
@@ -109,11 +111,23 @@ with chat_container:
 
         try:
             with st.chat_message("assistant"):
+                charts_buffer = []
                 full_response = st.write_stream(
                     get_streaming_response(
                         url=f"{FASTAPI_URL}/chat",
-                        payload=payload_chat
+                        payload=payload_chat,
+                        charts_out=charts_buffer
                     )
+                )
+
+            for i, chart in enumerate(charts_buffer):
+                img_bytes = base64.b64decode(chart["data"])
+                st.image(BytesIO(img_bytes), use_container_width=True)
+                st.download_button(
+                    label="Download chart",
+                    data=img_bytes,
+                    file_name=f"chart_{i+1}.png",
+                    key=f"download_chart_{session_id}_{i}"
                 )
 
             assistant_msg = {
