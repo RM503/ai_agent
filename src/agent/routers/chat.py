@@ -4,7 +4,6 @@ from typing import AsyncIterator
 
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from redis.asyncio import Redis
 
 from langchain_core.messages import HumanMessage
 
@@ -19,9 +18,6 @@ logger = get_logger(__name__)
 # Define API route & build graph
 router = APIRouter()
 graph = build_graph()
-
-r = Redis(host="localhost", port=6379, db=3, decode_responses=True)
-
 
 @router.post("/chat", response_class=StreamingResponse)
 async def chat(request: ChatRequest) -> StreamingResponse:
@@ -41,6 +37,20 @@ async def chat(request: ChatRequest) -> StreamingResponse:
 
     logger.info(f"{json.dumps(state.model_dump(), indent=4)})")
 
+    # Define invocation payload
+    invoke_payload = {
+        "session_id": session_id,
+        "messages": [HumanMessage(content=request.message)],
+        "uploaded_artifacts": state.uploaded_artifacts,
+        "route": state.route,
+        "transcript_text": state.transcript_text,
+        "summary_text": state.summary_text,
+        "analysis_result": state.analysis_result,
+        "response_text": state.response_text,
+        "dataset_key": state.dataset_key,
+        "metadata": state.metadata
+    }
+
     async def event_generator() -> AsyncIterator:
         payload_start = json.dumps({"type": "start", "session_id": session_id})
         #logger.info(f"{payload_start}")
@@ -48,10 +58,7 @@ async def chat(request: ChatRequest) -> StreamingResponse:
 
         chunks = []
         async for event in graph.astream_events(
-                {
-                    "session_id": session_id,
-                    "messages": [HumanMessage(content=request.message)]
-                },
+            invoke_payload,
             config={"configurable": {"thread_id": str(state.session_id)}},
             version="v2"
         ):

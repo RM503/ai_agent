@@ -3,15 +3,14 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, Form, File, UploadFile
-from redis.asyncio import Redis
 
 from agent.common.logging_config import get_logger
+from agent.memory.redis_config import redis_cache as r
 
 logger = get_logger(__name__)
 
 router = APIRouter()
 
-r = Redis(host="localhost", port=6379, db=3, decode_responses=True)
 STORAGE_DIR = Path(__file__).resolve().parents[3] / "storage" / "uploads"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -1,13 +1,12 @@
 import json
 
 from redis import RedisError
-from redis.asyncio import Redis 
 
 from agent.common.logging_config import get_logger
+from agent.memory.redis_config import redis_cache as r
 
 logger = get_logger(__name__)
 
-r = Redis(host="localhost", port=6379, db=3, decode_responses=True)
 
 async def retrieve_uploaded_artifacts(session_id: str) -> dict[str, str]:
     """Retrieve uploaded artifacts using session_id"""

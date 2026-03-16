@@ -1,14 +1,12 @@
 # Python REPL tool
-import ast
-import json
 import re
 from typing import Annotated
 
 import pandas as pd
+from e2b_code_interpreter import Sandbox
 from langchain.tools import tool
 
 from .dataset_registry import DATASET_REGISTRY
-from .parse_inline_data import register_inline_dataset
 
 def _violates_code_rules(code: str) -> str | None:
     checks = [
@@ -24,7 +22,6 @@ def _violates_code_rules(code: str) -> str | None:
         if re.search(pattern, code):
             return msg
     return None
-
 
 @tool
 def python_repl(
@@ -59,12 +56,8 @@ def python_repl(
     if violation:
         return f"Code generation error: {violation}"
 
-    local_vars = {"df": df}
-    safe_globals = {"pd": pd}
+    with Sandbox.create() as sandbox:
+        execution = sandbox.run_code(code)
+        result = execution.text 
 
-    try:
-        compile(code, "<string>", "exec")
-        exec(code, safe_globals, local_vars)
-        return str(local_vars.get("result", "Exectution complete"))
-    except Exception as e:
-        return f"Execution error: {e}"
+    return result
