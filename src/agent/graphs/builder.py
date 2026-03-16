@@ -1,3 +1,5 @@
+# Graph builder for the agent
+
 from __future__ import annotations
 
 from langgraph.checkpoint.memory import InMemorySaver
@@ -25,7 +27,6 @@ def build_graph() -> CompiledStateGraph:
     """Build a compiled graph from usable nodes"""
     # Create checkpoint for memory
     checkpointer = InMemorySaver()
-    # tools = [get_weather, web_search]
 
     graph = StateGraph(AgentState)
 

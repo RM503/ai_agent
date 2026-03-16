@@ -18,7 +18,7 @@ def orchestrator_node(state: AgentState) -> dict:
     the `decide_route` function.
     """
     file_name = (
-        state.uploaded_artifacts[0].file_name
+        state.uploaded_artifacts.file_name
         if state.uploaded_artifacts else None
     )
 
