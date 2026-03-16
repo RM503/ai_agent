@@ -1,5 +1,6 @@
 # Python REPL tool
 import re
+import os
 from typing import Annotated
 
 import pandas as pd
@@ -9,6 +10,9 @@ from langchain.tools import tool
 from .dataset_registry import DATASET_REGISTRY
 
 def _violates_code_rules(code: str) -> str | None:
+    """
+    This function checks if the given code violates any code rules.
+    """
     checks = [
         (r"\bdf\s*=", "Do not assign to `df`. The dataframe is already provided."),
         (r"\bdata\s*=\s*\[", "Do not inline dataset rows inside the code."),
@@ -56,7 +60,7 @@ def python_repl(
     if violation:
         return f"Code generation error: {violation}"
 
-    with Sandbox.create() as sandbox:
+    with Sandbox.create(api_key=os.getenv("E2B_SANDBOX_API_KEY")) as sandbox:
         execution = sandbox.run_code(code)
         result = execution.text 
 

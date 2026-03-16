@@ -8,12 +8,12 @@ from langchain.tools import tool
 
 from .dataset_registry import DATASET_REGISTRY
 
-LoaderType = Callable[[Path], pd.DataFrame]
+LoaderType = Callable[[Path | str], pd.DataFrame]
 
-def csv_loader(file_path: Path) -> pd.DataFrame:
+def csv_loader(file_path: Path | str) -> pd.DataFrame:
     return pd.read_csv(file_path)
 
-def excel_loader(file_path: Path) -> pd.DataFrame:
+def excel_loader(file_path: Path | str) -> pd.DataFrame:
     return pd.read_excel(file_path)
 
 _LOADER_REGISTRY: dict[str, LoaderType] = {
