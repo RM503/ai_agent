@@ -56,7 +56,7 @@ def file_loader(file_path: Annotated[str, "Absolute or relative path to the file
     DATASET_REGISTRY[dataset_key] = df
 
     return (
-        f"Data successfully loaded.\n",
+        f"Data successfully loaded.\n"
         f"Dataset key: {dataset_key}\n"
         f"Shape: {df.shape[0]} rows and {df.shape[1]} columns \n"
         f"Columns: {', '.join(map(str, df.columns.tolist()))}\n"
