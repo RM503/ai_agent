@@ -4,6 +4,7 @@ from pathlib import Path
 
 from langchain_core.messages import SystemMessage
 
+from .utils import get_recent_messages, trim_tool_message
 from agent.prompts.load_prompts import load_prompts
 from agent.schemas.graph_state import AgentState
 from agent.services.llm import get_chat_model
@@ -22,7 +23,7 @@ def general_responder_node(state: AgentState) -> dict:
 
     messages = [
         SystemMessage(GENERAL_SYSTEM_PROMPT),
-        *state.messages
+        *trim_tool_message(get_recent_messages(state.messages))
     ]
 
     tools = [get_weather, web_search]

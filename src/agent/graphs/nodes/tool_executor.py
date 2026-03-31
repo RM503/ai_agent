@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from json.decoder import JSONDecodeError
+
 from langchain_core.messages import AIMessage, ToolMessage
 
 from agent.schemas.graph_state import AgentState
@@ -30,17 +33,30 @@ def tool_executor_node(state: AgentState) -> dict:
         return {"messages": []}
 
     results = []
+
     for tool_call in last_message.tool_calls:
-        tool = tool_map[tool_call["name"]]
+        tool_name = tool_call["name"]
+        tool_id = tool_call["id"]
+        tool = tool_map[tool_name]
+
         try:
             output = tool.invoke(tool_call["args"])
         except Exception as e:
             output = f"Error: {e}"
 
+        # Strip chart blobs before they enter the LLM context window
+        try:
+            output_dict = json.loads(output)
+            has_charts = bool(output_dict.pop("charts", []))
+            output_dict["has_charts"] = has_charts
+            llm_output = json.dumps(output_dict)
+        except (JSONDecodeError, AttributeError, TypeError) as e:
+            llm_output = str(output)
+
         results.append(
             ToolMessage(
-                content=str(output),
-                tool_call_id=tool_call["id"]
+                content=llm_output,
+                tool_call_id=tool_id
             )
         )
     return {"messages": results}

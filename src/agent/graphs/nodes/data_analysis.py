@@ -4,6 +4,7 @@ from pathlib import Path
 
 from langchain_core.messages import SystemMessage
 
+from .utils import get_recent_messages, trim_tool_message
 from agent.prompts.load_prompts import load_prompts
 from agent.schemas.graph_state import AgentState
 from agent.services.llm import get_chat_model
@@ -32,7 +33,7 @@ def data_analysis_node(state: AgentState) -> dict:
 
     messages = [
         SystemMessage(DA_SYSTEM_PROMPT + artifact_context),
-        *state.messages
+        *trim_tool_message(get_recent_messages(state.messages))
     ]
 
     data_tools = [file_loader, python_repl]
