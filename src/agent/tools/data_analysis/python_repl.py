@@ -5,12 +5,14 @@ import os
 import tempfile
 from typing import Annotated
 
-import pandas as pd
 from e2b_code_interpreter import Sandbox
 from langchain.tools import tool
 
 from .dataset_registry import DATASET_REGISTRY
 from .repl_wrapper import build_wrapped_code
+from agent.common.logging_config import get_logger
+
+logger = get_logger(__name__)
 
 def _violates_code_rules(code: str) -> str | None:
     """
@@ -161,9 +163,18 @@ def python_repl(
             for line in stdout_text.splitlines():
                 if line.startswith("__RESULT__"):
                     result_payload = json.loads(line[len("__RESULT__"):])
-                elif line.startswith("__CHARTS__"):
-                    raw = json.loads(line[len("__CHARTS__"):])
+            charts_marker = "__CHARTS__"
+            charts_idx = stdout_text.find(charts_marker)
+            if charts_idx != -1:
+                # Find end of the JSON array (next newline or end of string)
+                json_start = charts_idx + len(charts_marker)
+                json_end = stdout_text.find("\n", json_start)
+                raw_json = stdout_text[json_start:] if json_end == -1 else stdout_text[json_start:json_end]
+                try:
+                    raw = json.loads(raw_json.strip())
                     charts = [{"mime": "image/png", "data": b64} for b64 in raw]
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse __CHARTS__ payload: {e}")
 
             status = "ok" if not stderr_text else "partial"
 

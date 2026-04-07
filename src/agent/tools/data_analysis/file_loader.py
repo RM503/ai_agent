@@ -1,7 +1,8 @@
 # File loader tool
 
+import json
 from pathlib import Path
-from typing import Annotated, Callable
+from typing import Annotated, Any, Callable
 
 import pandas as pd
 from langchain.tools import tool
@@ -30,36 +31,58 @@ def file_loader(file_path: Annotated[str, "Absolute or relative path to the file
     Args:
         file_path (Path): the file path
     Returns:
-        Text sumary containing dataset key, shape, columns and a small
-        preview so that the agent can decide what to do next.
+        str: JSON result.
+
+        Success shape:
+            {
+                "status": "ok",
+                "dataset_key": str,
+                "shape": [int, int],
+                "columns": list[str],
+                "preview_rows": list[dict[str, Any]]
+            }
+
+        Error shape:
+            {
+                "status": "error",
+                "error": str
+            }
     """
 
     path = Path(file_path)
     if not path.exists():
-        return f"Error: '{file_path}' does not exist. Verify upload and retry."
+        return json.dumps({
+            "status": "error",
+            "error": f"File at '{file_path}' not found. Verify upload."
+        })
 
     extension = path.suffix
     loader = _LOADER_REGISTRY.get(extension, None)
 
     if loader is None:
         supported = ", ".join(_LOADER_REGISTRY)
-        return f"Error: unsupported file type '{extension}. Supported types are {supported}"
+        return json.dumps({
+            "status": "error",
+            "error": f"File extension '{extension}' not supported. Supported types are {supported}"
+        })
 
     try:
         df = loader(path)
     except Exception as e:
-        return f"Error loading file: {e}"
+        return json.dumps({
+            "status": "error",
+            "error": f"Error loading file: {e}"
+        })
 
     # Use the datasets name as the key for registry (sans extension)
     dataset_key = path.name
-    preview = df.head(5).to_string()
+    preview_rows = df.head(5).to_dict(orient="records")
     DATASET_REGISTRY[dataset_key] = df
 
-    return (
-        f"Data successfully loaded.\n"
-        f"Dataset key: {dataset_key}\n"
-        f"Shape: {df.shape[0]} rows and {df.shape[1]} columns \n"
-        f"Columns: {', '.join(map(str, df.columns.tolist()))}\n"
-        f"Preview: \n{preview}\n"
-        f"Use dataset key '{dataset_key}' for follow-up analysis."
-    )
+    return json.dumps({
+        "status": "ok",
+        "dataset_key": dataset_key,
+        "shape": [df.shape[0], df.shape[1]],
+        "columns": list(map(str, df.columns.tolist())),
+        "preview_rows": preview_rows
+    })
