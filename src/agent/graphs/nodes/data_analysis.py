@@ -40,7 +40,4 @@ def data_analysis_node(state: AgentState) -> dict:
     llm_with_tools = llm.bind_tools(data_tools)
     response = llm_with_tools.invoke(messages)
 
-    return {
-        "messages": [response],
-        "response_text": response.content if isinstance(response.content, str) else ""
-    }
+    return {"messages": [response]}

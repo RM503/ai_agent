@@ -4,7 +4,7 @@ import json
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import SystemMessage
 
 from .utils import get_recent_messages
 from agent.common.logging_config import get_logger

@@ -10,26 +10,22 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
 from kombu.exceptions import OperationalError
-from redis import Redis
 
 from agent.common.logging_config import get_logger
+from agent.memory.redis_config import redis_main as r
 from agent.worker.tasks import transcribe_audio
 
 logger = get_logger(__name__)
 
-page_router = APIRouter()
-api_router = APIRouter(prefix="/transcription", tags=["transcription"])
-templates = Jinja2Templates(directory="agent/templates")
+page_router: APIRouter = APIRouter()
+api_router: APIRouter = APIRouter(prefix="/transcription", tags=["transcription"])
+templates: Jinja2Templates = Jinja2Templates(directory="agent/templates")
 
 # Resolve root and find uploads directory
 # All uploads are stored at the root level under storage/uploads
-ROOT_DIR = Path(__file__).resolve().parents[3]
-UPLOAD_DIR = ROOT_DIR / "storage" / "uploads"
+ROOT_DIR: Path = Path(__file__).resolve().parents[3]
+UPLOAD_DIR: Path = ROOT_DIR / "storage" / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-# Initialize Redis client
-r = Redis(host="localhost", port=6379, db=0, decode_responses=True)
-r.config_set("save", "")
 
 @page_router.get("/upload")
 async def upload_page(request: Request) -> HTMLResponse:

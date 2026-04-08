@@ -18,7 +18,7 @@ def get_recent_messages(messages: list[BaseMessage], max_turns: int = 50) -> lis
 
     return sliced
 
-def trim_tool_message(messages: list[BaseMessage], max_chars: int=2000) -> list[BaseMessage]:
+def trim_tool_message(messages: list[BaseMessage]) -> list[BaseMessage]:
     trimmed = []
     for msg in messages:
         if isinstance(msg, ToolMessage):

@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Form, File, UploadFile
@@ -9,9 +10,9 @@ from agent.memory.redis_config import redis_cache as r
 
 logger = get_logger(__name__)
 
-router = APIRouter()
+router: APIRouter = APIRouter()
 
-STORAGE_DIR = Path(__file__).resolve().parents[3] / "storage" / "uploads"
+STORAGE_DIR: Path = Path(__file__).resolve().parents[3] / "storage" / "uploads"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
 @router.post("/uploads")
@@ -27,12 +28,12 @@ async def upload_files(
     for file in files:
         # for UploadArtifact state, except file content
         # which is to be read from storage
-        content = await file.read()
-        file_id = str(uuid4().hex)
-        file_name = file.filename
-        file_path = STORAGE_DIR / file.filename
+        content: bytes = await file.read()
+        file_id: str = str(uuid4().hex)
+        file_name: str = file.filename
+        file_path: Path = STORAGE_DIR / file.filename
 
-        payload = {
+        payload: dict[str, Any] = {
             "session_id": session_id,
             "user_id": user_id,
             "file_id": file_id,
@@ -52,7 +53,7 @@ async def upload_files(
 
         # store payload in Redis with appropriate tags
         # set TTL to 1 hr
-        key = f"session_id:{session_id}:file"
+        key: str = f"session_id:{session_id}:file"
 
         await r.set(key, json.dumps(payload))
 

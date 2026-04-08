@@ -1,3 +1,9 @@
+"""
+SQLModel class for persisting chat session information
+"""
+
+from __future__ import annotations
+
 from datetime import datetime, UTC
 from typing import Optional
 from uuid import UUID

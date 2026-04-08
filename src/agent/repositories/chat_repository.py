@@ -1,6 +1,7 @@
 # Persists chat results in PostgreSQL database
 from datetime import datetime, UTC
 from dataclasses import dataclass
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy.engine import Engine
@@ -23,7 +24,7 @@ class ChatRepository:
     engine: Engine
     session: Session
     session_id: UUID
-    user_id: UUID | None=None
+    user_id: Optional[UUID] = None
 
     def ensure_chat_session(self):
         """This method creates a chat session entry if it does not already exist in the table"""

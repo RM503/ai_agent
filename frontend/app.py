@@ -42,7 +42,9 @@ st.write(
     """
 )
 
-# Store session_id and messages
+"""
+Session states - session_id, messages, file upload and download links
+"""
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid4())
 
@@ -64,7 +66,7 @@ with chat_container:
             st.markdown(content)
 
 prompt = st.chat_input(
-    "Hi! How can I help you?", 
+    placeholder="Hi! How can I help you?",
     accept_file="multiple",
     file_type=["pdf", "txt", "csv", "xls", "xlsx"]
 )
@@ -74,10 +76,7 @@ with chat_container:
         # Extract text if file uploads are enabled
         user_message = prompt.text
         
-        attached = [
-            {"name": f.name, "type": f.type, "bytes": f.read()}
-            for f in (prompt["files"] or [])
-        ]
+        attached = [{"name": f.name, "type": f.type, "bytes": f.read()} for f in (prompt["files"] or [])]
 
         session_id = str(st.session_state.session_id)
 
@@ -97,11 +96,19 @@ with chat_container:
         if attached:
             files_payload = [("files", (f["name"], f["bytes"], f["type"])) for f in attached]
 
-            _ = handle_file_upload(
-                url=f"{FASTAPI_URL}/uploads",
-                data={"session_id": session_id},
-                files_payload=files_payload
-            )
+            try:
+                response = handle_file_upload(
+                    url=f"{FASTAPI_URL}/uploads",
+                    data={"session_id": session_id},
+                    files_payload=files_payload
+                )
+                response.raise_for_status()
+            except HTTPStatusError as e:
+                st.error(
+                    body=f"File upload failed: {e.response.status_code} - {e.response.text}",
+                    icon="❌"
+                )
+                st.stop()
 
         # Define payloads to sent to end-points
         payload_chat = {
@@ -111,23 +118,27 @@ with chat_container:
 
         try:
             with st.chat_message("assistant"):
-                charts_buffer = []
-                full_response = st.write_stream(
-                    get_streaming_response(
-                        url=f"{FASTAPI_URL}/chat",
-                        payload=payload_chat,
-                        charts_out=charts_buffer
+                with st.spinner("Thinking..."):
+                    charts_buffer = []
+                    full_response = st.write_stream(
+                        get_streaming_response(
+                            url=f"{FASTAPI_URL}/chat",
+                            payload=payload_chat,
+                            charts_out=charts_buffer
+                        )
                     )
-                )
-
+            print(f"charts_buffer after write_stream: {len(charts_buffer)}")
             for i, chart in enumerate(charts_buffer):
+                # Plots and charts arrive as byte stream
+                # Must be decoded to reconstruct image
                 img_bytes = base64.b64decode(chart["data"])
-                st.image(BytesIO(img_bytes), use_container_width=True)
+                st.image(BytesIO(img_bytes), width=500)
                 st.download_button(
                     label="Download chart",
                     data=img_bytes,
                     file_name=f"chart_{i+1}.png",
-                    key=f"download_chart_{session_id}_{i}"
+                    key=f"download_chart_{session_id}_{i}",
+                    icon=":material/download:"
                 )
 
             assistant_msg = {
@@ -136,4 +147,11 @@ with chat_container:
             }
             st.session_state.messages.append(assistant_msg)
         except HTTPStatusError as e:
-            raise e
+            st.error(
+                body=f"Streaming failed: {e.response.status_code} - {e.response.text}",
+                icon="❌"
+            )
+            st.stop()
+        except Exception as e:
+            st.error(f"Unexpected error during streaming: {e}")
+            st.stop()

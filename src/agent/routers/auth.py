@@ -1,3 +1,5 @@
+# Router for OAuth2 authentication with Google
+
 import os
 from datetime import datetime, timedelta, timezone
 

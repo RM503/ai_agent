@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 from typing import Annotated, Any, Literal, Optional
 from uuid import UUID
 
+from langchain_core.documents import Document
 from langchain_core.messages import BaseMessage
 from langgraph.graph.message import add_messages
 from pydantic import BaseModel, Field
@@ -16,10 +18,24 @@ class UploadedArtifact(BaseModel):
     file_path: Optional[str | Path] = None
 
 class AnalysisResult(BaseModel):
+    dataset_key: Optional[str] = None
+    status: Optional[str] = None
+    result_type: Optional[str] = None
+    result_value: Optional[Any] = None
+    generated_at: Optional[datetime] = None
     summary: Optional[str] = None
     preview_rows: list[dict[str, Any]] = Field(default_factory=list)
     metrics: dict[str, Any] = Field(default_factory=dict)
     chart_paths: list[str | Path] = Field(default_factory=list)
+
+class RetrievedDocument(BaseModel):
+    """Class for retrieved documents"""
+    content: str
+    source: Optional[str] = None # e.g. file name, URL etc
+    doc_id: Optional[str | UUID] = None # e.g. vector store document id
+    chunk_idx : Optional[int] = None
+    score : Optional[float] = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 class AgentState(BaseModel):
     """The general agent state"""
@@ -40,9 +56,6 @@ class AgentState(BaseModel):
     transcript_text: Optional[str] = None
     summary_text: Optional[str] = None
     analysis_result: Optional[AnalysisResult] = None
-
-    # Agent response
-    response_text: Optional[str] = None
 
     # Conversation memory
     messages: Annotated[list[BaseMessage], add_messages] = Field(default_factory=list)

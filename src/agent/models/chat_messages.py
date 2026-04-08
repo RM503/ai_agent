@@ -1,3 +1,9 @@
+"""
+SQLModel class for persisting chat messages
+"""
+
+from __future__ import annotations
+
 from datetime import datetime, UTC
 from typing import Optional
 from uuid import UUID
@@ -13,12 +19,12 @@ class ChatMessage(SQLModel, table=True):
         {"extend_existing": True}
     )
 
-    message_id: Optional[uuid.UUID] = Field(
+    message_id: Optional[UUID] = Field(
         default=None,
         primary_key=True,
         sa_column_kwargs={"server_default": "gen_random_uuid()"}
     )
-    session_id: uuid.UUID = Field(foreign_key="chat_sessions.session_id")
+    session_id: UUID = Field(foreign_key="chat_sessions.session_id")
     message_index: int = Field(nullable=False)
     message_role: str = Field(nullable=False)
     message_content: str = Field(nullable=False)

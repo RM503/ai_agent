@@ -1,16 +1,23 @@
-# Route for chat UI
+"""
+FASTAPI route for LLM chat
+"""
+from __future__ import annotations
+
 import json
 from typing import Any, AsyncIterator
+from uuid import UUID
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-
 from langchain_core.messages import HumanMessage
 from langgraph.graph.state import CompiledStateGraph
+from sqlmodel import Session
 
 from .router_utils import retrieve_uploaded_artifacts
+from agent.common.db import get_session
 from agent.common.logging_config import get_logger
 from agent.graphs.builder import build_graph
+from agent.repositories.chat_repository import ChatRepository
 from agent.schemas.api import ChatRequest
 from agent.schemas.graph_state import AgentState, AnalysisResult, UploadedArtifact
 
@@ -39,7 +46,7 @@ def _coerce_analysis_result(payload: dict[str, Any] | AnalysisResult | None) -> 
     return AnalysisResult.model_validate(payload)
 
 @router.post("/chat", response_class=StreamingResponse)
-async def chat(request: ChatRequest) -> StreamingResponse:
+async def chat(request: ChatRequest, db: Session=Depends(get_session)) -> StreamingResponse:
     """
     This route is used to generate streamed chat messages for the chat UI.
 
@@ -51,6 +58,17 @@ async def chat(request: ChatRequest) -> StreamingResponse:
     """
     session_id: str = str(request.session_id)
     config: dict[str, Any] = {"configurable": {"thread_id": session_id}}
+
+    # DB insert for human messages
+    repo = ChatRepository(
+        engine=db.get_bind(),
+        session=db,
+        session_id=UUID(session_id),
+        user_id=None
+    )
+
+    repo.ensure_chat_session()
+    repo.insert_chat_message(role="human", content=request.message, metadata={})
 
     logger.info(f"session_id:{session_id}")
 
@@ -146,6 +164,10 @@ async def chat(request: ChatRequest) -> StreamingResponse:
         logger.info(f"{json.dumps(state.model_dump(mode="json"), indent=4)})")
 
         full_text  : str = "".join(chunks)
+
+        # DB insert for ai messages
+        repo.insert_chat_message(role="ai", content=full_text, metadata={})
+
         payload_end: str = json.dumps({
             "type": "end",
             "session_id": session_id,
