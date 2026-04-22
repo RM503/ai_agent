@@ -1,10 +1,14 @@
+"""
+Module for registering document uploads
+"""
 from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-Document = Any
-LoaderFactory = Callable[[Path, dict[str, Any]], Document]
+from langchain_core.documents import Document
+
+LoaderFactory = Callable[[Path, dict[str, Any]], list[Document]]
 
 _LOADERS_BY_EXT: dict[str, LoaderFactory] = {}
 _DEFAULT_LOADER: Optional[LoaderFactory] = None
@@ -20,9 +24,10 @@ def register_loader(*exts: str):
     """The decorator registers a loader for one or more extensions."""
     def decorator(factory: LoaderFactory) -> LoaderFactory:
         for ext in exts:
-            if ext in _LOADERS_BY_EXT:
-                raise ValueError(f"Loader already registered: {ext}")
-            _LOADERS_BY_EXT[ext] = factory
+            normalized_ext = _norm_ext(ext)
+            if normalized_ext in _LOADERS_BY_EXT:
+                raise ValueError(f"Loader already registered: {normalized_ext}")
+            _LOADERS_BY_EXT[normalized_ext] = factory
         return factory
     return decorator
 
@@ -45,4 +50,6 @@ def load_documents(path: str | Path, **kwargs: Any) -> list[Document]:
             raise NotImplementedError(f"No loader for '{path.suffix}'. Available: {available_extensions()}")
         factory = _DEFAULT_LOADER
 
-    return factory[path, kwargs]
+    return factory(path, kwargs)
+
+from . import loaders as _loaders  # noqa: E402,F401
