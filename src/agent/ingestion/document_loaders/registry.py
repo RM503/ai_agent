@@ -8,7 +8,7 @@ from typing import Any, Callable, Optional
 
 from langchain_core.documents import Document
 
-LoaderFactory = Callable[[Path, dict[str, Any]], list[Document]]
+LoaderFactory = Callable[[Path, Optional[dict[str, Any]]], list[Document]]
 
 _LOADERS_BY_EXT: dict[str, LoaderFactory] = {}
 _DEFAULT_LOADER: Optional[LoaderFactory] = None

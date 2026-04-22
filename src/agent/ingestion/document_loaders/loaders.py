@@ -16,7 +16,8 @@ def _metadata(path: Path, **extra: Any) -> dict[str, Any]:
         **extra,
     }
 
-def _read_text(path: Path, options: dict[str, Any]) -> str:
+def _read_text(path: Path, options: dict[str, Any] | None = None) -> str:
+    options = options or {}
     return path.read_text(
         encoding=options.get("encoding", "utf-8"),
         errors=options.get("errors", "replace"),
@@ -24,7 +25,7 @@ def _read_text(path: Path, options: dict[str, Any]) -> str:
 
 @register_default_loader
 @register_loader(".txt", ".md", ".markdown")
-def load_text_document(path: Path, options: dict[str, Any]) -> list[Document]:
+def load_text_document(path: Path, options: dict[str, Any] | None = None) -> list[Document]:
     return [
         Document(
             page_content=_read_text(path, options),
@@ -33,7 +34,8 @@ def load_text_document(path: Path, options: dict[str, Any]) -> list[Document]:
     ]
 
 @register_loader(".json")
-def load_json_document(path: Path, options: dict[str, Any]) -> list[Document]:
+def load_json_document(path: Path, options: dict[str, Any] | None = None) -> list[Document]:
+    options = options or {}
     with path.open("r", encoding=options.get("encoding", "utf-8")) as file:
         payload = json.load(file)
 
@@ -45,7 +47,7 @@ def load_json_document(path: Path, options: dict[str, Any]) -> list[Document]:
     ]
 
 @register_loader(".pdf")
-def load_pdf_document(path: Path, options: dict[str, Any]) -> list[Document]:
+def load_pdf_document(path: Path, options: dict[str, Any] | None = None) -> list[Document]:
     from pypdf import PdfReader
 
     reader = PdfReader(str(path))
@@ -62,7 +64,7 @@ def load_pdf_document(path: Path, options: dict[str, Any]) -> list[Document]:
     return documents
 
 @register_loader(".docx")
-def load_docx_document(path: Path, options: dict[str, Any]) -> list[Document]:
+def load_docx_document(path: Path, options: dict[str, Any] | None = None) -> list[Document]:
     import docx2txt
 
     return [
