@@ -1,3 +1,6 @@
+"""
+Registers text-splitters for use in RAG pipeline
+"""
 from __future__ import annotations
 
 from typing import Any, Callable
@@ -6,6 +9,7 @@ SplitterFactory = Callable[[int, int, dict[str, Any]], Any]
 _FACTORIES: dict[str, SplitterFactory] = {}
 
 def register_splitter(name: str) -> Any:
+    """Implements a decorator for registering splitters."""
     def decorator(factory: SplitterFactory) -> SplitterFactory:
         if name in _FACTORIES:
             raise ValueError(f"Duplicate splitter name: {name}")
@@ -13,7 +17,7 @@ def register_splitter(name: str) -> Any:
         return factory
     return decorator
 
-def get(name: str) -> SplitterFactory:
+def get_splitter(name: str) -> SplitterFactory:
     try:
         return _FACTORIES[name]
     except KeyError as e:

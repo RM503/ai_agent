@@ -10,6 +10,7 @@ _LOADERS_BY_EXT: dict[str, LoaderFactory] = {}
 _DEFAULT_LOADER: Optional[LoaderFactory] = None
 
 def _norm_ext(ext: str) -> str:
+    """Normalize unusually typed extensions."""
     ext = ext.strip().lower()
     if not ext:
         raise ValueError("Empty extension")
@@ -38,7 +39,7 @@ def load_documents(path: str | Path, **kwargs: Any) -> list[Document]:
     if not path.exists():
         raise FileNotFoundError(path)
 
-    factory = _LOADERS_BY_EXT.get(path.suffix.lower())
+    factory = _LOADERS_BY_EXT.get(_norm_ext(path.suffix.lower()))
     if factory is None:
         if _DEFAULT_LOADER is None:
             raise NotImplementedError(f"No loader for '{path.suffix}'. Available: {available_extensions()}")
