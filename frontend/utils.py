@@ -1,5 +1,5 @@
 import json
-from typing import Generator
+from collections.abc import Generator
 
 import httpx
 import streamlit as st

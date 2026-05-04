@@ -1,6 +1,7 @@
 # Streamlit Frontend
 
 import base64
+import logging
 import os
 from io import BytesIO
 from uuid import uuid4
@@ -13,6 +14,8 @@ from utils import handle_file_upload, get_messages, get_streaming_response
 
 load_dotenv()
 
+logger = logging.getLogger(__name__)
+
 # Layout
 st.set_page_config(
     layout="wide",
@@ -20,6 +23,12 @@ st.set_page_config(
 )
 
 FASTAPI_URL = os.getenv("FASTAPI_URL")
+
+"""
+Session states - session_id, messages, file upload and download links
+"""
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid4())
 
 with st.sidebar:
     st.image("https://api.dicebear.com/8.x/adventurer/svg?seed=dummy", width=50)
@@ -29,24 +38,66 @@ with st.sidebar:
     if st.button("Log out"):
         st.warning("Logged out")
 
+    st.divider()
+    st.subheader("Upload documents or audio files.")
+
+    upload_mode = st.radio(
+        "Upload target",
+        ["RAG knowledge base", "Transcription"]
+    )
+
+    if upload_mode == "RAG knowledge base":
+        rag_files = st.file_uploader(
+            "RAG files",
+            type=["pdf", "txt", "md", "markdown", "json", "docx"],
+            accept_multiple_files=True,
+            key="rag_uploader"
+        )
+        if st.button("Upload to RAG knowledge base", disabled=not rag_files):
+            files_payload = [
+                ("files", (f.name, f.getvalue(), f.type))
+                for f in rag_files
+            ]
+            response = handle_file_upload(
+                url=f"{FASTAPI_URL}/ingestions/",
+                data={"session_id": st.session_state.session_id},
+                files_payload=files_payload
+            )
+            response.raise_for_status()
+            st.success("Files uploaded to RAG knowledge base successfully!")
+    else:
+        audio_file = st.file_uploader(
+            "Audio file",
+            type=["mp3", "wav", "m4a", "aac", "ogg", "flac"],
+            accept_multiple_files=False,
+            key="transcription_sidebar_file"
+        )
+
+        if st.button("Start transcription", disabled=not audio_file):
+            files_payload = [
+                ("file", (audio_file.name, audio_file.getvalue(), audio_file.type))
+            ]
+            response = handle_file_upload(
+                url=f"{FASTAPI_URL}/transcription/upload-audio",
+                data={},
+                files_payload=files_payload,
+            )
+            response.raise_for_status()
+            st.session_state.transcription_job = response.json()
+            st.success("Transcription started")
+
 st.title("Welcome user")
 
 st.write(
     """
     Q is an an AI agent currently in its development stage. Other than serving
     as a general chatbot, it is equipped to perform the following tasks:
-    
+
     - Transcription of audio files with summarization
     - Research using custom data (RAG agent)
     - Data analysis
     """
 )
-
-"""
-Session states - session_id, messages, file upload and download links
-"""
-if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid4())
 
 # Chat UI
 st.session_state.messages = get_messages()
@@ -75,7 +126,7 @@ with chat_container:
     if prompt:
         # Extract text if file uploads are enabled
         user_message = prompt.text
-        
+
         attached = [{"name": f.name, "type": f.type, "bytes": f.read()} for f in (prompt["files"] or [])]
 
         session_id = str(st.session_state.session_id)
@@ -127,7 +178,7 @@ with chat_container:
                             charts_out=charts_buffer
                         )
                     )
-            print(f"charts_buffer after write_stream: {len(charts_buffer)}")
+            logger.info(f"charts_buffer after write_stream: {len(charts_buffer)}")
             for i, chart in enumerate(charts_buffer):
                 # Plots and charts arrive as byte stream
                 # Must be decoded to reconstruct image
