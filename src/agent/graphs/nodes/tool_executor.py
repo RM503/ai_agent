@@ -1,10 +1,15 @@
+"""
+This module implements the tool executor node, which is responsible for executing
+tool calls found in the previous message and updating the state with the results.
+"""
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from json.decoder import JSONDecodeError
-from typing import Any, Callable, Optional
+from typing import Any
 
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.messages.tool import ToolCall
@@ -32,7 +37,8 @@ class ToolOutputContext:
     Attributes:
         state (AgentState): the graph's state
         tool_call (ToolCall): the tool that was called in previous message
-        output_dict (dict[str, Any]): output produced by the tool invocation removed of chart blobs (used as LLM output)
+        output_dict (dict[str, Any]): output produced by the tool invocation removed of
+            chart blobs (used as LLM output)
         raw_output_dict (dict[str, Any]): raw snapshot of the output with complete information
     """
     state: AgentState
@@ -42,8 +48,8 @@ class ToolOutputContext:
 
 @dataclass
 class ToolHandlerUpdates:
-    dataset_key: Optional[str] = None
-    analysis_result: Optional[AnalysisResult] = None
+    dataset_key: str | None = None
+    analysis_result: AnalysisResult | None = None
 
 ToolOutputHandler = Callable[[ToolOutputContext], ToolHandlerUpdates]
 
@@ -117,7 +123,6 @@ def tool_executor_node(state: AgentState) -> dict:
         try:
             # Manually invoke tool from tool call arguments
             output = tool.invoke(tool_call["args"])
-            
         except Exception as e:
             output = f"Error: {e}"
 

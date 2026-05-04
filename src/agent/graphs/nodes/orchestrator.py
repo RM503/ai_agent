@@ -15,7 +15,9 @@ from agent.services.llm import get_chat_model
 logger = get_logger(__name__)
 
 PROMPTS_PATH = Path(__file__).resolve().parents[2] / "prompts" / "prompts.yaml"
-ORCHESTRATOR_SYSTEM_PROMPT = load_prompts(name="orchestrator", category="system", prompts_file=PROMPTS_PATH)
+ORCHESTRATOR_SYSTEM_PROMPT = load_prompts(
+    name="orchestrator", category="system", prompts_file=PROMPTS_PATH
+)
 
 # Valid routes and fallback route
 VALID_ROUTES: set[str] = {"transcription", "data_analysis", "summarization", "general"}
@@ -32,7 +34,8 @@ def orchestrator_node(state: AgentState) -> dict:
     # Important: add upload context to orchestrator
     artifact_context = ""
     if state.uploaded_artifacts and state.uploaded_artifacts.file_path:
-        artifact_context = f"\nThe user has uploaded a file: {state.uploaded_artifacts.file_name}. Route to data_analysis."
+        artifact_context = f"\nThe user has uploaded a file: {state.uploaded_artifacts.file_name}. "
+        "Route to data_analysis."
 
     messages = [
         SystemMessage(ORCHESTRATOR_SYSTEM_PROMPT + artifact_context),

@@ -27,7 +27,7 @@ def data_analysis_node(state: AgentState) -> dict:
         artifact_context = f"""
         Available uploaded file:
         file_path: {file_path}
-        
+
         Use the `file_loader` tool with this exact file_path before analysis.
         """
 

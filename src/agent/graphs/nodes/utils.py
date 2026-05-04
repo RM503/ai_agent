@@ -6,7 +6,12 @@ from json.decoder import JSONDecodeError
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, ToolMessage
 
 def get_recent_messages(messages: list[BaseMessage], max_turns: int = 50) -> list[BaseMessage]:
-    """This function returns the recent messages sent by the user"""
+    """
+    Returns the most recent `max_turns` conversation turns, excluding system messages.
+
+    Trims any orphaned ToolMessages or AIMessages with tool_calls that appear
+    before the first HumanMessage at the slice boundary.
+    """
     non_system = [m for m in messages if not isinstance(m, SystemMessage)]
     sliced = non_system[-(max_turns * 2):]
 
@@ -19,6 +24,13 @@ def get_recent_messages(messages: list[BaseMessage], max_turns: int = 50) -> lis
     return sliced
 
 def trim_tool_message(messages: list[BaseMessage]) -> list[BaseMessage]:
+    """
+    Truncates the content of ToolMessages in a message list to reduce token usage.
+
+    For each ToolMessage, parses the JSON payload and replaces result["value"] with
+    "[truncated]" and removes any "stdout" field. Non-ToolMessages are passed through
+    unchanged. Falls back to the original content if it cannot be parsed as JSON.
+    """
     trimmed = []
     for msg in messages:
         if isinstance(msg, ToolMessage):
