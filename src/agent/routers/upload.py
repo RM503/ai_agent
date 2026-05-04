@@ -10,17 +10,17 @@ from agent.memory.redis_config import redis_cache as r
 
 logger = get_logger(__name__)
 
-router: APIRouter = APIRouter()
+router: APIRouter = APIRouter(prefix="/uploads", tags=["uploads"])
 
 STORAGE_DIR: Path = Path(__file__).resolve().parents[3] / "storage" / "uploads"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
-@router.post("/uploads")
+@router.post("/")
 async def upload_files(
         session_id: str | None = Form(...),
         user_id: str | None = Form(None),
         files: list[UploadFile] = File(...)
-):
+) -> dict[str, Any]:
     """
     Route for file uploads.
     """
@@ -45,7 +45,7 @@ async def upload_files(
             with open(file_path, "wb") as f:
                 f.write(content)
             results[file_name] = "succes"
-        except (FileNotFoundError, IOError) as e:
+        except OSError as e:
             logger.exception(e)
             results[file_name] = "failed"
 

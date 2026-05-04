@@ -3,8 +3,7 @@ from __future__ import annotations
 import os
 
 from langchain.tools import tool
-from langchain_community.tools import DuckDuckGoSearchResults
-from langchain_tavily import TavilySearchResults
+from langchain_community.tools import DuckDuckGoSearchResults, TavilySearchResults
 
 
 def _is_tavily_low_usage_error(err: BaseException) -> bool:

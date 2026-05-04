@@ -1,10 +1,11 @@
 """
 Module containing data ingestion pipeline for RAG.
 """
-from __future__ import annotations 
+from __future__ import annotations
 
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable, Optional
+from typing import Any
 
 from langchain_core.documents import Document
 
@@ -26,7 +27,7 @@ def _normalize_paths(paths: str | Path | list[str | Path]) -> list[Path]:
         normalized = [Path(paths)]
     else:
         normalized = [Path(p) for p in paths]
-    
+
     if not normalized:
         raise ValueError("No input paths provided.")
 
@@ -71,33 +72,36 @@ def _attach_chunk_metadata(chunks: list[Document]) -> list[Document]:
     for chunk in chunks:
         source = str(chunk.metadata.get("source", "unknown"))
         chunk_idx = counts_by_source.get(source, 0)
-        chunk.metadata["chunk_idx"] = chunk_idx 
+        chunk.metadata["chunk_idx"] = chunk_idx
         counts_by_source[source] = chunk_idx + 1
 
     return chunks
 
 def load_and_split(
     paths: str | Path | Iterable[str | Path],
-    splitter: Optional[TextSplitter]=None,
-    loader_kwargs: Optional[dict[str, Any]]=None,
-    splitter_kwargs: Optional[dict[str, Any]]=None
+    splitter: TextSplitter | None = None,
+    loader_kwargs: dict[str, Any] | None = None,
+    splitter_kwargs: dict[str, Any] | None = None
 ) -> list[Document]:
     """
     Loads all documents and performs split.
 
     Args:
         paths (str | Path | Iterable[str | Path]): document path(s)
-        splitter (TextSplitter, optional): text-splitter class 
+        splitter (TextSplitter, optional): text-splitter class
         loader_kwargs (dict[str, Any], optional): key-word arguments passed to loader
         splitter_kwargs (dict[str, Any], optional): key-word arguments passed to splitter class
 
     Returns:
         (list[Document]): list of chunked document(s)
     """
+    loader_kwargs = loader_kwargs or {}
+    splitter_kwargs = splitter_kwargs or {}
+
     normalized_paths = _normalize_paths(paths)
     loaded_documents = _load_all(normalized_paths, **loader_kwargs)
 
     splitter = splitter or TextSplitter(**splitter_kwargs)
-    chunked_documents = splitter.create_splitter().split_documents(loaded_documents)
+    chunked_documents = splitter.get_splits(loaded_documents)
 
     return _attach_chunk_metadata(chunked_documents)

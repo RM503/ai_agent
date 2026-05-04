@@ -3,15 +3,16 @@ Module for registering document uploads
 """
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any
 
 from langchain_core.documents import Document
 
-LoaderFactory = Callable[[Path, Optional[dict[str, Any]]], list[Document]]
+LoaderFactory = Callable[[Path, dict[str, Any]], list[Document]]
 
 _LOADERS_BY_EXT: dict[str, LoaderFactory] = {}
-_DEFAULT_LOADER: Optional[LoaderFactory] = None
+_DEFAULT_LOADER: LoaderFactory | None = None
 
 def _norm_ext(ext: str) -> str:
     """Normalize unusually typed extensions."""

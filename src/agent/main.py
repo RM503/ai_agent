@@ -2,11 +2,12 @@
 from fastapi import FastAPI
 
 from .common.logging_config import get_logger
-from .routers import auth, chat, upload
+from .routers import auth, chat, ingestion, upload
 
 logger = get_logger(__name__)
 
 app = FastAPI()
 app.include_router(auth.router)
 app.include_router(chat.router)
+app.include_router(ingestion.router)
 app.include_router(upload.router)

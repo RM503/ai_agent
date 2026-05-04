@@ -4,17 +4,17 @@ from collections.abc import Sequence
 from typing import Any
 
 from langchain_core.documents import Document
-from langchain_core.vectorstores import PostgresVectorStore as PGVectorStore
+from langchain_postgres import PGVector
 
 from .base import BaseVectorStore
-from src.agent.common.logging_config import get_logger
+from agent.common.logging_config import get_logger
 
 logger = get_logger(__name__)
 
 
 class PostgresVectorStore(BaseVectorStore):
     """PostgreSQL vector store implementation."""
-    def __init__(self, store: PGVectorStore, table_name: str):
+    def __init__(self, store: PGVector, table_name: str):
         self.store = store
         self.table_name = table_name
 
@@ -57,7 +57,7 @@ class PostgresVectorStore(BaseVectorStore):
     def delete_documents(self, ids: Sequence[str], **kwargs: Any) -> bool | None:
         """Delete documents by ID from PostgreSQL vector store."""
         try:
-            self.store.delete_documents(ids, **kwargs)
+            self.store.delete(ids, **kwargs)
             logger.info(f"Deleted documents with IDs: {ids} from PostgreSQL vector store.")
             return True
         except ValueError:
