@@ -1,19 +1,27 @@
-# Celery task for transcription
+"""
+Celery tasks for audio transcription and document ingestion.
+"""
+
 from __future__ import annotations
 
 import json
 
-import redis
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from .celery_app import celery_app
-from ..tools.transcription.stt import transcription_stream
+from agent.memory.redis_config import redis_jobs_sync as r
+from agent.ingestion.pipeline import load_and_split
+from agent.tools.transcription.stt import transcription_stream
+from agent.vector_stores.factory import create_qdrant_vector_store
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 OUTPUT_DIR = REPO_ROOT / "storage" / "transcripts"
+STORAGE_DIR = REPO_ROOT / "storage" / "ingestion"
+STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
-r = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
 r.config_set("save", "")
 
 def _push_event(job_id: str, payload: dict[str, Any]) -> None:
@@ -65,7 +73,7 @@ def transcribe_audio(self, job_id: str, file_path: str, out_dir: str=OUTPUT_DIR)
                 raise RuntimeError(f"Transcription error: {msg}")
 
         if final_text is None:
-            raise RuntimeError(f"Transcription stream ended without a `done` event.")
+            raise RuntimeError("Transcription stream ended without a `done` event.")
 
         txt_path.write_text(final_text, encoding="utf-8")
 
@@ -87,4 +95,68 @@ def transcribe_audio(self, job_id: str, file_path: str, out_dir: str=OUTPUT_DIR)
         # Produce an error message at the frontend
         _push_event(job_id, {"type": "error", "message": str(e)})
 
+        raise
+
+@celery_app.task(bind=True, name="task.ingest_documents")
+def ingest_documents(
+    self,
+    ingestion_id: str,
+    session_id: str,
+    user_id: str | None,
+    file_paths: Sequence[Path | str],
+    initial_results: dict[str, Any]
+) -> dict[str, Any]:
+    """
+    Celery task for RAG document ingestion. It loads and splits documents, adds
+    metadata and stores them in a chosen vector database. The task status and results
+    are stored in Redis for polling.
+
+    Args:
+        ingestion_id (str): Unique ID for this ingestion job
+        session_id (str): Session ID to associate with this ingestion
+        user_id (str | None): Optional user ID for tracking
+        file_paths (Sequence[Path | str]): List of document file paths to ingest
+        initial_results (dict[str, Any]): Initial results to include in the final output
+
+    Returns:
+        dict[str, Any]: A dictionary containing ingestion results and metadata
+    """
+    try:
+        r.set(f"ingesion:{ingestion_id}:status", "running")
+        r.delete(f"ingestion:{ingestion_id}:error")
+
+        paths = [Path(fp) for fp in file_paths]
+        chunks = load_and_split(paths)
+
+        for chunk in chunks:
+            chunk.metadata.update(
+                {
+                    "ingestion_id": ingestion_id,
+                    "session_id": session_id,
+                    "user_id": user_id
+                }
+            )
+
+        ids = [uuid4().hex for _ in chunks]
+        vector_store = create_qdrant_vector_store()
+        vector_store.add_documents(chunks, ids=ids)
+
+        result = {
+            "ingestion_id": ingestion_id,
+            "session_id": session_id,
+            "user_id": user_id,
+            "file_count": len(file_paths),
+            "chunk_count": len(chunks),
+            "document_ids": ids,
+            "results": initial_results
+        }
+
+        r.set(f"ingestion:{ingestion_id}:result", json.dumps(result))
+        r.set(f"ingestion:{ingestion_id}:status", "done")
+        r.set(f"session_id:{session_id}:ingestion:{ingestion_id}", json.dumps(result))
+
+        return result
+    except Exception as e:
+        r.set(f"ingestion:{ingestion_id}:status", "error")
+        r.set(f"ingestion:{ingestion_id}:error", str(e))
         raise
