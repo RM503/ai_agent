@@ -36,7 +36,19 @@ class BaseVectorStore(ABC):
         filter: dict | None = None,
         **kwargs: Any
     ) -> list[Document]:
-        """Performs similarity search onb query."""
+        """Performs similarity search on query."""
+        pass
+
+    @abstractmethod
+    def similarity_search_with_score(
+        self,
+        query: str,
+        k: int=5,
+        filter: dict | None = None,
+        score_threshold: float = 0.5,
+        **kwargs: Any
+    ) -> list[tuple[Document, float]]:
+        """Performs similarity search with score on query."""
         pass
 
     @abstractmethod

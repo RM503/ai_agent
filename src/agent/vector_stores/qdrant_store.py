@@ -55,6 +55,27 @@ class QdrantStore(BaseVectorStore):
         logger.info(f"Performed Qdrant similarity search for query: '{query}' with k={k}.")
         return results
 
+    def similarity_search_with_score(
+            self,
+            query: str,
+            k: int=5,
+            filter: dict | None = None,
+            score_threshold: float = 0.5,
+            **kwargs: Any
+    ) -> list[tuple[Document, float]]:
+        """Performs similarity search with score on query in Qdrant vector store."""
+        results = self.store.similarity_search_with_score(
+            query=query,
+            k=k,
+            filter=filter,
+            score_threshold=score_threshold,
+            **kwargs
+        )
+        logger.info(
+            f"Performed Qdrant similarity search with score for query: '{query}' wih k={k}."
+        )
+        return results
+
     def delete_documents(self, ids: Sequence[str], **kwargs: Any) -> bool | None:
         """Delete documents by ID from Qdrant vector store."""
         try:
