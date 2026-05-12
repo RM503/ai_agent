@@ -1,13 +1,20 @@
+"""
+This module contains the orchestrator node of the graph, responsible
+for routing states to different nodes.
+"""
+
 from __future__ import annotations
 
 import json
 from json.decoder import JSONDecodeError
 from pathlib import Path
 
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from .utils import get_recent_messages
 from agent.common.logging_config import get_logger
+from agent.graphs.nodes.utils import get_last_user_message
+from agent.graphs.router import decide_route
 from agent.prompts.load_prompts import load_prompts
 from agent.schemas.graph_state import AgentState
 from agent.services.llm import get_chat_model
@@ -20,14 +27,20 @@ ORCHESTRATOR_SYSTEM_PROMPT = load_prompts(
 )
 
 # Valid routes and fallback route
-VALID_ROUTES: set[str] = {"transcription", "data_analysis", "summarization", "general"}
+VALID_ROUTES: set[str] = {
+    "data_analysis",
+    "general",
+    "rag",
+    "summarization",
+    "transcription"
+}
 FALLBACK_ROUTE = "general"
 
 def orchestrator_node(state: AgentState) -> dict:
     """
-    You are the 'Orchestrator node'. You decide which node to
-    direct the state to depending on what the user wants using
-    the `decide_route` function.
+    You are the 'Orchestrator node' for the agent. You decide which node to
+    direct the state to depending on what the user wants using the `decide_route`
+    function.
     """
     llm = get_chat_model()
 
@@ -53,6 +66,17 @@ def orchestrator_node(state: AgentState) -> dict:
 
     # General fallback if a valid route was not identified
     if route not in VALID_ROUTES:
+        last_user_message = get_last_user_message(state.messages)
+        file_name = (
+            state.uploaded_artifacts if state.uploaded_artifacts
+            else None
+        )
+        route = decide_route(
+            message=last_user_message,
+            file_name=file_name,
+            has_rag_ingestions=bool(state.active_ingestions or state.active_ingestion_id)
+        )
+    else:
         route = FALLBACK_ROUTE
 
     logger.info(f"Orchestrator routed to: {route}")

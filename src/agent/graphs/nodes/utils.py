@@ -3,7 +3,21 @@
 import json
 from json.decoder import JSONDecodeError
 
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.messages import (
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage
+)
+
+
+def get_last_user_message(messages: list[BaseMessage]) -> str:
+    """Retrieves the last user message"""
+    for message in reversed(messages):
+        if isinstance(message, HumanMessage):
+            return str(message.content)
+    return ""
+
 
 def get_recent_messages(messages: list[BaseMessage], max_turns: int = 50) -> list[BaseMessage]:
     """
