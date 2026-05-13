@@ -3,12 +3,11 @@ from __future__ import annotations
 
 import yaml
 from pathlib import Path
-from typing import Optional
 
 def load_prompts(
         name: str,
         category: str="system",
-        template_vars: Optional[dict]=None,
+        template_vars: dict[str, str] | None = None,
         prompts_file: Path | str="prompts.yaml"
 ) -> dict[str, str]:
     with open(prompts_file, "r") as f:
