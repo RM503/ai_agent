@@ -1,18 +1,17 @@
 """
-Modulue for rewriting user queries for RAG pipeline
+Module for rewriting user queries for RAG pipeline. Defines a Pydantic class
+`QueryRewriteModule` that is used to encapsulate user queries, rewrites and
+conversation summaries.
 """
 
 from __future__ import annotations
 
-import json
-
-from json import JSONDecodeError
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
-from langchain_core.output_parsers import StrOutputParser
+from langchain_core.output_parsers import JSONOutputParser, StrOutputParser
 
 from agent.prompts.load_prompts import load_prompts
 from agent.schemas.graph_state import RagQuery
@@ -134,17 +133,16 @@ def rewrite_query(payload: QueryRewriteInput) -> RagQuery:
     """.strip()
 
     llm = get_chat_model()
-    chain = llm | StrOutputParser()
+    chain = llm | JSONOutputParser()
 
     try:
-        response = chain.invoke(
+        parsed = chain.invoke(
             [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_query)
             ]
         )
-        parsed = json.loads(str(response.content).strip())
-    except (JSONDecodeError, TypeError, ValueError):
+    except Exception:
         return _fallback_query(payload)
 
     query_type = parsed.get("query_type")

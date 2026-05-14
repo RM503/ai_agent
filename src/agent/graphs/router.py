@@ -16,7 +16,7 @@ AUDIO_EXTS: set[str] = {".mp3", ".wav", ".m4a", ".mp4", ".aac", ".flac"}
 # Data file extensions for analysis
 DATA_EXTS: set[str] = {".csv", ".xlsx", ".xls", ".parquet"}
 # Document extensions for RAG
-RAG_EXTS: str[str] = {".pdf", ".txt", ".docx"}
+RAG_EXTS: set[str] = {".pdf", ".txt", ".docx"}
 
 # Possible tasks list
 ANALYSIS_TASKS: list[str] = [

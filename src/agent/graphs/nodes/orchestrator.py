@@ -47,8 +47,10 @@ def orchestrator_node(state: AgentState) -> dict:
     # Important: add upload context to orchestrator
     artifact_context = ""
     if state.uploaded_artifacts and state.uploaded_artifacts.file_path:
-        artifact_context = f"\nThe user has uploaded a file: {state.uploaded_artifacts.file_name}. "
-        "Route to data_analysis."
+        artifact_context = (
+            f"\nThe user has uploaded a file: {state.uploaded_artifacts.file_name}. "
+            "Route to data_analysis."
+        )
 
     messages = [
         SystemMessage(ORCHESTRATOR_SYSTEM_PROMPT + artifact_context),
@@ -60,7 +62,10 @@ def orchestrator_node(state: AgentState) -> dict:
 
     try:
         parsed_content = json.loads(content)
-        route = parsed_content.get("route", "").strip().lower()
+        if isinstance(parsed_content, dict):
+            route = parsed_content.get("route", "").strip().lower()
+        else:
+            route = ""
     except JSONDecodeError:
         route = content.lower()
 
@@ -68,15 +73,16 @@ def orchestrator_node(state: AgentState) -> dict:
     if route not in VALID_ROUTES:
         last_user_message = get_last_user_message(state.messages)
         file_name = (
-            state.uploaded_artifacts if state.uploaded_artifacts
+            state.uploaded_artifacts.file_name if state.uploaded_artifacts
             else None
         )
         route = decide_route(
             message=last_user_message,
             file_name=file_name,
-            has_rag_ingestions=bool(state.active_ingestions or state.active_ingestion_id)
+            has_rag_ingestions=bool(state.rag_ingestions or state.active_ingestion_id)
         )
-    else:
+
+    if route not in VALID_ROUTES:
         route = FALLBACK_ROUTE
 
     logger.info(f"Orchestrator routed to: {route}")

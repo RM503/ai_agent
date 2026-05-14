@@ -4,8 +4,9 @@ from pathlib import Path
 from typing import Any
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.output_parsers import StrOutputParser
 
-from .utils import get_recent_messages
+from .utils import get_recent_messages, get_last_user_message
 from agent.common.logging_config import get_logger
 from agent.prompts.load_prompts import load_prompts
 from agent.rag.retrieval.context_builder import build_context_text
@@ -24,20 +25,12 @@ RAG_SYSTEM_PROMPT = load_prompts(
 )
 
 
-def _last_user_message(state: AgentState) -> str:
-    """Retrieve last user message."""
-    for message in reversed(state.messages):
-        if isinstance(message, HumanMessage):
-            return str(message.content)
-    return ""
-
-
 def _answer_from_context(
         state: AgentState,
         rag_context: RagContext
 ) -> str:
     query = rag_context.query
-    original_query = query.original_query if query else _last_user_message(state)
+    original_query = query.original_query if query else get_last_user_message(state)
     retrieval_status = rag_context.retrieval_status
 
     if retrieval_status == "empty":
@@ -59,17 +52,18 @@ def _answer_from_context(
     ]
 
     llm = get_chat_model()
-    response = llm.invoke(messages)
-    return str(response.content)
+    chain = llm | StrOutputParser()
+    response = chain.invoke(messages)
+    return str(response)
 
 
 def rag_node(state: AgentState) -> dict[str, Any]:
-    user_query = _last_user_message(state)
+    user_query = get_last_user_message(state)
 
     # Create metadata filters
     filters = build_rag_filters(
-        session_id=state.session_id,
-        ingestion_id=state.ingestion_id
+        rag_scope=state.rag_scope,
+        session_id=state.session_id
     )
 
     # Rewrite query
@@ -77,7 +71,10 @@ def rag_node(state: AgentState) -> dict[str, Any]:
         user_query=user_query,
         recent_messages=get_recent_messages(state.messages, max_turns=3),
         conversation_summary=state.summary_text,
-        active_ingestion_id=str(state.active_ingestion_id) if state.active_ingestion_id else None,
+        active_ingestion_id=str(
+            state.rag_scope.ingestion_id
+            if state.rag_scope.ingestion_id else None
+        ),
         filters=filters
     )
 

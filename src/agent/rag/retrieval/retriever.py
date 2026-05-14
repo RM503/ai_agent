@@ -26,6 +26,16 @@ def _metadata_value(metadata: dict[str, Any], *keys: str) -> Any | None:
     return None
 
 
+def _add_score_to_metadata(
+        docs: list[Document],
+        scores: list[float]
+) -> list[Document]:
+    """Adds vector search scores to document metadata."""
+    for doc, score in zip(docs, scores):
+        doc.metadata["score"] = score
+    return docs
+
+
 def _to_retrieved_document(document: Document) -> RetrievedDocument:
     """Converts document chunk into RetrievedDocument object."""
     metadata = dict(document.metadata or {})
@@ -93,6 +103,9 @@ def retrieve_for_query(
             retrieval_status="error",
             error=str(e)
         )
+
+    # Include retrieval scores as part of document metadata
+    docs = _add_score_to_metadata(docs, scores)
 
     retrieved = [_to_retrieved_document(doc) for doc in docs]
     retrieved = [
