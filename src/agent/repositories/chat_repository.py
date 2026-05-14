@@ -1,7 +1,7 @@
 # Persists chat results in PostgreSQL database
 from datetime import datetime, UTC
 from dataclasses import dataclass
-from typing import Optional
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy.engine import Engine
@@ -24,7 +24,7 @@ class ChatRepository:
     engine: Engine
     session: Session
     session_id: UUID
-    user_id: Optional[UUID] = None
+    user_id: UUID | None = None
 
     def ensure_chat_session(self):
         """This method creates a chat session entry if it does not already exist in the table"""
@@ -53,7 +53,23 @@ class ChatRepository:
         max_index = self.session.exec(stmt).one()
         return (max_index or 0) + 1
 
-    def insert_chat_message(self, role: str, content: str, metadata: dict | None=None) -> ChatMessage:
+    def insert_chat_message(
+            self,
+            role: Literal["human", "ai"],
+            content: str,
+            metadata: dict[str, Any] | None=None
+        ) -> ChatMessage:
+        """
+        Inserts chat message at the current index
+
+        Args:
+            role (str): Current role in the conversation; must be one of 'human' or 'ai'.
+            content (str): Conversation content.
+            metadata (dict[str, Any]): Metadata associated with conversation.
+
+        Returns:
+            ChatMessage: A class containing important attributes pertaining to chats.
+        """
         next_index = self.get_next_message_index()
 
         msg = ChatMessage(

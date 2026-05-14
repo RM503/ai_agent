@@ -5,7 +5,6 @@ SQLModel class for persisting chat messages
 from __future__ import annotations
 
 from datetime import datetime, UTC
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import Column, UniqueConstraint
@@ -19,7 +18,7 @@ class ChatMessage(SQLModel, table=True):
         {"extend_existing": True}
     )
 
-    message_id: Optional[UUID] = Field(
+    message_id: UUID | None = Field(
         default=None,
         primary_key=True,
         sa_column_kwargs={"server_default": "gen_random_uuid()"}

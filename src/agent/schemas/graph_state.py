@@ -1,3 +1,8 @@
+"""
+Module containing the various graph states to be used by the LangGraph
+agent, including the various nodes, tools and the AgentState.
+"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -16,7 +21,7 @@ class UploadedArtifact(BaseModel):
     file_content: str | None = None
     file_path: str | Path | None = None
 
-class AnalysisResult(BaseModel):
+class AnalysisResult(BaseModel): 
     dataset_key: str | None = None
     status: str | None = None
     result_type: str | None = None
@@ -26,6 +31,15 @@ class AnalysisResult(BaseModel):
     preview_rows: list[dict[str, Any]] = Field(default_factory=list)
     metrics: dict[str, Any] = Field(default_factory=dict)
     chart_paths: list[str | Path] = Field(default_factory=list)
+
+# === RAG === #
+class RagScope(BaseModel):
+    """Defines scope variables for RAG operation"""
+    scope: Literal["global", "user", "project", "session"] = "global"
+    user_id : str | UUID | None = None
+    project_id: str | UUID | None = None
+    collection: str | None = None
+    ingestion_id: str | UUID | None = None
 
 class RagIngestionRef(BaseModel):
     """Reference to async RAG ingestion job available to this session."""
@@ -86,6 +100,7 @@ class AgentState(BaseModel):
     uploaded_artifacts: UploadedArtifact | None = None
 
     # RAG state
+    rag_scope: RagScope = Field(default_factory=RagScope)
     rag_ingestions: list[RagIngestionRef] = Field(default_factory=list)
     active_ingestion_id: str | UUID | None = None
     rag_context: RagContext | None = None
